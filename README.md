@@ -1,1 +1,1 @@
-# Hive-Box
+# HiveBox
