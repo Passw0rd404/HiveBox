@@ -1,7 +1,16 @@
 from endpoints import version
+from fastapi import FastAPI
 
-def main():
-    print(version.get_version())
+app = FastAPI()
 
-if __name__ == '__main__':
-    main()
+@app.get("/")
+async def root():
+    return {"Hello": "World"}
+
+@app.get("/version")
+async def get_version():
+    return {"version": version.get_version()}
+
+@app.get("/temperature")
+async def get_temprature():
+    return {"Hello": "World"}
