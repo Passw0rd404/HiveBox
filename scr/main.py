@@ -1,4 +1,4 @@
-from endpoints import version
+from endpoints import version, temperature
 from fastapi import FastAPI
 
 app = FastAPI()
@@ -13,4 +13,4 @@ async def get_version():
 
 @app.get("/temperature")
 async def get_temprature():
-    return {"Hello": "World"}
+    return {"avg_temperature in Berlin is": temperature.get_avg_temp()}
