@@ -13,4 +13,5 @@ async def get_version():
 
 @app.get("/temperature")
 async def get_temprature():
-    return {"avg_temperature in Berlin is": temperature.get_avg_temp()}
+    temp = await temperature.get_avg_temp()
+    return {"avg_temperature in Berlin is": temp}
