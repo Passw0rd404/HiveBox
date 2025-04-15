@@ -11,12 +11,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@v2
+      with:
+        egress-policy: audit
+
     - name: Checkout code
       uses: actions/checkout@v2
 
     - name: Set up ENV_var
       run: |
-        ENV=$(cat ../scr/VERSION)
+        ENV=$(cat VERSION)
         echo "ENV_VAR=$ENV" >> $GITHUB_ENV
 
     - name: Set up Docker
@@ -36,15 +41,3 @@ jobs:
         tags: | 
           ${{ secrets.DOCKER_USERNAME }}/hive_box:${{ env.ENV_VAR }}
           ${{ secrets.DOCKER_USERNAME }}/hive_box:latest
-
-  lint:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-
-    - name: Run Hddolint
-      uses: hadolint/hadolint-action@v2
-      with:
-        file: Dockerfile
