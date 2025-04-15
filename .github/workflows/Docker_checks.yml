@@ -19,10 +19,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Set up ENV_var
+    - name: get_commit
+      id: commit 
       run: |
-        ENV=$(cat ../../scr/VERSION)
-        echo "ENV_VAR=$ENV" >> $GITHUB_ENV
+        COMMIT_MSG=$(git log -1 --pretty=%B)
+        echo "COMMIT_MSG=${COMMIT_MSG}" >> $GITHUB_OUTPUT
 
     - name: Set up Docker
       uses: docker/setup-buildx-action@v2
@@ -39,5 +40,5 @@ jobs:
         context: .
         push: true
         tags: | 
-          ${{ secrets.DOCKER_USERNAME }}/hive_box:${{ env.ENV_VAR }}
+          ${{ secrets.DOCKER_USERNAME }}/hive_box:${{ steps.commit.outputs.COMMIT_MSG }}
           ${{ secrets.DOCKER_USERNAME }}/hive_box:latest
