@@ -21,7 +21,7 @@ jobs:
 
     - name: Set up ENV_var
       run: |
-        ENV=$(cat VERSION)
+        ENV=$(cat ../../scr/VERSION)
         echo "ENV_VAR=$ENV" >> $GITHUB_ENV
 
     - name: Set up Docker
