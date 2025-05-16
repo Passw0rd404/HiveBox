@@ -29,9 +29,8 @@ async def get_boxes(session) -> list:
     response = session.get(url, params=passargs, timeout=10)
     if response.status_code == 200:
         return response.json()
-    else:
-        print(f"Error: {response.status_code}")
-        return []
+    print(f"Error: {response.status_code}")
+    return []
 
 
 async def check_boxs(boxs) -> list:

@@ -9,11 +9,11 @@ def test_get_version():
     """
 
 
-regex = (
+REGEX = (
     r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
     r"(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?"
     r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
 )
 
-version = version.get_version()
-assert re.match(regex, version) is not None
+VERSION = version.get_version()
+assert re.match(REGEX, version) is not None
