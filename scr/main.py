@@ -1,7 +1,8 @@
 """ Main entry point for the FastAPI application."""
 from fastapi import FastAPI
 
-from scr.endpoints import version, temperature
+from endpoints import temperature, version
+
 
 app = FastAPI()
 

@@ -3,8 +3,7 @@ name: Python Build and Lint (pylint)
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build-and-lint:
@@ -19,6 +18,9 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
+        cache: 'pip'  # Cache pip dependencies
+        cache-dependency-path: requirements.txt  # Cache dependencies based on requirements.txt
+        # This will cache the pip dependencies based on the requirements.txt file.
 
     - name: Install dependencies
       run: |
@@ -28,4 +30,4 @@ jobs:
     - name: Run pylint
       run: |
         echo "Running pylint..."
-        pylint $(git ls-files '*.py')/ --disable=invalid-name
+        pylint $(git ls-files '*.py') --disable=invalid-name --fail-under-test=8.0

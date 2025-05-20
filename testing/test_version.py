@@ -16,4 +16,4 @@ REGEX = (
 )
 
 VERSION = version.get_version()
-assert re.match(REGEX, version) is not None
+assert re.match(REGEX, VERSION) is not None
