@@ -1,8 +1,9 @@
+"""This module provides a function to retrieve the current version of the application."""
+
 
 def get_version():
     """
     Returns the current version of the application.
     """
-    with open("VERSION", "r") as file:
-        VERSION = file.read().strip()
-    return VERSION
+    version = "0.3.7"
+    return version

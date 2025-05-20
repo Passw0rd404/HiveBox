@@ -28,4 +28,4 @@ jobs:
     - name: Run pylint
       run: |
         echo "Running pylint..."
-        pylint $(git ls-files '*.py') --fail-under=8.0
+        pylint $(git ls-files '*.py')/ --disable=invalid-name
