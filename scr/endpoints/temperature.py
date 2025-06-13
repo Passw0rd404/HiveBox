@@ -1,5 +1,4 @@
-"""
-    This module contains the function to get the average temperature from the OpenSenseMap API."""
+"""This module contains the function to get the average temperature from the OpenSenseMap API."""
 from datetime import datetime, timedelta
 import requests
 

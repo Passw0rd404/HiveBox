@@ -3,7 +3,6 @@ from fastapi import FastAPI
 
 from endpoints import temperature, version
 
-
 app = FastAPI()
 
 
