@@ -1,5 +1,4 @@
-"""
-    This module contains the function to get the average temperature from the OpenSenseMap API."""
+"""This module contains the function to get the average temperature from the OpenSenseMap API."""
 from datetime import datetime, timedelta
 import requests
 
@@ -9,14 +8,16 @@ async def get_avg_temp() -> float:
     This is the main function that gets the average temperature from the OpenSenseMap API.
     """
     with requests.Session() as session:
-        boxs = await get_boxes(session)
-        boxs = await check_boxs(boxs)
-        boxs_temps = await get_boxes_temp(boxs, session)
-        counter = 0.1
-        for box in boxs_temps:
+        boxes = await get_boxes(session)
+        boxes = await check_boxes(boxes)
+        boxes_temps = await get_boxes_temp(boxes, session)
+        if not boxes_temps:
+            return 0.0
+        counter = 0.0
+        for box in boxes_temps:
             box = float(box)
             counter += box
-        avg_temp = counter / len(boxs_temps)
+        avg_temp = counter / len(boxes_temps)
         return round(avg_temp, 2)
 
 
@@ -33,12 +34,12 @@ async def get_boxes(session) -> list:
     return []
 
 
-async def check_boxs(boxs) -> list:
+async def check_boxes(boxes) -> list:
     """
     checks if the box's sensors last check was at least 3 hours ago and returns a list of box IDs.
     """
     ok_boxs = []
-    for box in boxs:
+    for box in boxes:
         if "lastMeasurementAt" in box.keys():
             last_measurement = datetime.strptime(
                 box["lastMeasurementAt"], "%Y-%m-%dT%H:%M:%S.%fZ"
