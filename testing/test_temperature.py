@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 from datetime import datetime, timedelta
 import pytest
 
-from ..scr.endpoints.temperature import (
+from scr.endpoints.temperature import (
     get_avg_temp,
     get_boxes,
     check_boxes,
@@ -12,7 +12,7 @@ from ..scr.endpoints.temperature import (
 
 
 @pytest.mark.asyncio
-@patch("HiveBox.scr.endpoints.temperature.requests.Session")
+@patch("scr.endpoints.temperature.requests.Session")
 async def test_get_avg_temp(mock_session_class):
     """
     Test the get_avg_temp function to ensure it returns the correct average temperature.
@@ -77,7 +77,7 @@ async def test_get_avg_temp(mock_session_class):
     assert result == 20.5
 
 
-@patch("HiveBox.scr.endpoints.temperature.requests.Session")
+@patch("scr.endpoints.temperature.requests.Session")
 async def test_get_boxes_success(mock_session_class):
     """
     Test the get_boxes function to ensure it returns a list of boxes."""
@@ -93,7 +93,7 @@ async def test_get_boxes_success(mock_session_class):
     assert result == [{"_id": "box1"}]
 
 
-@patch("HiveBox.scr.endpoints.temperature.requests.Session")
+@patch("scr.endpoints.temperature.requests.Session")
 async def test_get_boxes_failure(
     mock_session_class, capsys: pytest.CaptureFixture[str]
 ):
@@ -144,7 +144,7 @@ async def test_check_boxs_missing_timestamp():
     assert result == []
 
 
-@patch("HiveBox.scr.endpoints.temperature.requests.Session")
+@patch("scr.endpoints.temperature.requests.Session")
 async def test_get_boxes_temp_valid(mock_session_class):
     """
     Test the get_boxes_temp function to ensure it returns a list of temperatures.
@@ -165,7 +165,7 @@ async def test_get_boxes_temp_valid(mock_session_class):
     assert temps == ["24.5"]
 
 
-@patch("HiveBox.scr.endpoints.temperature.requests.Session")
+@patch("scr.endpoints.temperature.requests.Session")
 async def test_get_boxes_temp_no_temp_sensor(mock_session_class):
     """
     Test the get_boxes_temp function to ensure it returns
@@ -184,7 +184,7 @@ async def test_get_boxes_temp_no_temp_sensor(mock_session_class):
     assert temps == []
 
 
-@patch("HiveBox.scr.endpoints.temperature.requests.Session")
+@patch("scr.endpoints.temperature.requests.Session")
 async def test_get_boxes_temp_empty_boxes(mock_session_class):
     """Test the get_boxes_temp function to ensure it returns
     an empty list if no box IDs are provided.

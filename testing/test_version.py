@@ -1,6 +1,6 @@
 """Test the version endpoint of the SCR API."""
 import re
-from ..scr.endpoints import version
+from scr.endpoints import version
 
 
 def test_get_version():
