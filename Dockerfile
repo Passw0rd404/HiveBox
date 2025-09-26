@@ -1,5 +1,4 @@
-FROM python:3.12-alpine3.17
-
+FROM python:alpine
 # PYTHONDONTWRITEBYTECODE=1 to prevent Python from writing .pyc files to disk
 # PYTHONUNBUFFERED=1 to ensure that the output of Python is sent straight to terminal (e.g. for docker logs) without being buffered
 ENV PYTHONUNBUFFERED=1

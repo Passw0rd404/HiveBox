@@ -5,5 +5,5 @@ def get_version():
     """
     Returns the current version of the application.
     """
-    version = "0.4.0"
+    version = "0.5.0"
     return version

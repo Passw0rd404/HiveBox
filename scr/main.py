@@ -22,4 +22,9 @@ async def get_version() -> dict:
 async def get_temprature() -> dict:
     """Endpoint that returns the average temperature in Berlin."""
     temp = await temperature.get_avg_temp()
-    return {"avg_temperature in Berlin is": temp}
+    if temp < 10:
+        return {"avg_temperature in Berlin is": temp, "status": "Too Cold"}
+    elif temp > 37:
+        return {"avg_temperature in Berlin is": temp, "status": "Hoo Hot"}
+    else:
+        return {"avg_temperature in Berlin is": temp, "status": "Good"}
