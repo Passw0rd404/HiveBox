@@ -32,7 +32,7 @@ jobs:
         # This command does BOTH:
         # 1. Runs all your unit tests
         # 2. Checks that coverage is >= 90%
-        pytest tests/ \
+        pytest testing/ \
           --verbose \
           --cov=src \
           --cov-report=term-missing \
