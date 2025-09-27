@@ -1,5 +1,6 @@
 """ Main entry point for the FastAPI application."""
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 
 from .endpoints import temperature, version
 
@@ -19,12 +20,37 @@ async def get_version() -> dict:
 
 
 @app.get("/temperature")
-async def get_temprature() -> dict:
+async def get_temperature():
     """Endpoint that returns the average temperature in Berlin."""
-    temp = await temperature.get_avg_temp()
-    if temp < 10:
-        return {"avg_temperature in Berlin is": temp, "status": "Too Cold"}
-    elif temp > 37:
-        return {"avg_temperature in Berlin is": temp, "status": "Hoo Hot"}
-    else:
-        return {"avg_temperature in Berlin is": temp, "status": "Good"}
+    try:
+        temp = await temperature.get_avg_temp()
+
+        # Handle the case where no data was found
+        if temp == 0.0:
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "avg_temperature_in_berlin": temp,
+                    "status": "Service Unavailable",
+                    "note": "Temperature services are currently unavailable. Please try again later.",
+                },
+            )
+
+        # Determine status based on temperature
+        if temp < 5:
+            status = "Very Cold"
+        elif temp < 10:
+            status = "Cold"
+        elif temp > 30:
+            status = "Hot"
+        elif temp > 25:
+            status = "Warm"
+        else:
+            status = "Moderate"
+
+        return {"avg_temperature_in_berlin": temp, "status": status, "unit": "°C"}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error: {str(e)}"
+        ) from e

@@ -1,15 +1,19 @@
-FROM python:alpine
+FROM python:3.11-alpine
+
 # PYTHONDONTWRITEBYTECODE=1 to prevent Python from writing .pyc files to disk
-# PYTHONUNBUFFERED=1 to ensure that the output of Python is sent straight to terminal (e.g. for docker logs) without being buffered
+# PYTHONUNBUFFERED=1 to ensure that the output of Python is sent straight to terminal
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
-# copy system dependencies
-COPY ./requirements.txt /app/requirements.txt
+# Install system dependencies first
+RUN apk add --no-cache gcc=10.3.1-r0 musl-dev=1.2.3-r4 linux-headers=6.1.55-r0
 
-# making system user to avoid running as root
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Create non-root user
 RUN adduser \
     --disabled-password \
     --gecos "" \
@@ -19,16 +23,19 @@ RUN adduser \
     --uid "5555" \
     appuser
 
-# enable pip cache and install dependencies
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=bind,source=requirements.txt,target=requirements.txt \
-    python -m pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip==24.0 && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Fix permissions
+RUN chown -R appuser:appuser /app
 
 USER appuser
 
-COPY . /app/
-
 EXPOSE 8000
 
-# run the application
-CMD ["fastapi", "run", "scr/main.py", "--port", "8000"]
+# Use uvicorn directly instead of fastapi run
+CMD ["uvicorn", "scr.main:app", "--host", "0.0.0.0", "--port", "8000"]

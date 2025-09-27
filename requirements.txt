@@ -3,3 +3,5 @@ fastapi-cli==0.0.7
 uvicorn==0.23.2
 requests==2.31.0
 pylint==3.3.3
+asyncio==3.4.3
+aiohttp==3.12.15

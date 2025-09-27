@@ -1,6 +1,14 @@
 name: build and ship artifact
 
-on: workflow_dispatch
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - scr/**
+      - testing/**
+      - requirements.txt
+      - Dockerfile
+      - compose.yml
 
 jobs:
   build-and-lint-code:
@@ -28,7 +36,7 @@ jobs:
       run: |
         echo "Running pylint..."
         pylint $(git ls-files '*.py') --disable=invalid-name --fail-under-test=8.0
-  build:
+  build-artifact:
     runs-on: ubuntu-latest
 
     steps:
@@ -55,5 +63,5 @@ jobs:
         context: .
         push: true
         tags: |
-          ${{ secrets.DOCKER_USERNAME }}/hive_box:${{ steps.commit.outputs.COMMIT_MSG }}
+          ${{ secrets.DOCKER_USERNAME }}/hive_box:${{ github.sha }}
           ${{ secrets.DOCKER_USERNAME }}/hive_box:latest
