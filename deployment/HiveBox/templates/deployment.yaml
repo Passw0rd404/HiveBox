@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "HiveBox.fullname" . }}
+  labels:
+    {{- include "HiveBox.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "HiveBox.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "HiveBox.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.app.repository }}:{{ .Values.app.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.app.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+          - name: MINIO_ENDPOINT
+            value: "{{ .Values.app.env.MINIO_ENDPOINT }}"
+          - name: MINIO_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.secrets.minio.secretName }}
+                key: {{ .Values.secrets.minio.accessKeyKey }}
+          - name: MINIO_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.secrets.minio.secretName }}
+                key: {{ .Values.secrets.minio.secretKeyKey }}
+          - name: MINIO_SECURE
+            value: "{{ .Values.app.env.MINIO_SECURE }}"
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}

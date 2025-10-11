@@ -1,0 +1,48 @@
+prometheus:
+  namespace: monitoring
+  enabled: true
+  server:
+    persistentVolume:
+      enabled: true
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "300m"
+    extraScrapeConfigs: |
+      - job_name: 'fastapi-app'
+        kubernetes_sd_configs:
+        - role: endpoints
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+          action: keep
+          regex: true
+        - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+        - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+          action: replace
+          regex: (.+)(?::\d+);(\d+)
+          replacement: $1:$2
+          target_label: __address__
+  alertmanager:
+    enabled: false
+  nodeExporter:
+    enabled: true
+  pushgateway:
+    enabled: false
+  kubeStateMetrics:
+    enabled: true
+  serviceMonitor:
+    namespaceSelector:
+      any: true
+
+grafana:
+  enabled: true
+  adminPassword: "admin"
+  service:
+    type: ClusterIP
+    port: 3000
+  persistence:
+    enabled: false
+  defaultDashboardsEnabled: true

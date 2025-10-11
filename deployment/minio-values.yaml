@@ -1,0 +1,32 @@
+# minio-values-prod.yaml
+global:
+  mode: standalone
+
+mode: standalone
+replicas: 1
+
+image:
+  repository: minio/minio
+  tag: latest
+
+persistence:
+  enabled: true
+  size: 50Gi  # Larger for production
+
+service:
+  type: ClusterIP
+
+# Use existing secret instead of environment variables
+existingSecret: "minio-credentials"
+
+# Reference the keys in the secret
+existingSecretUsers: 
+  - accessKey: "access-key"
+    secretKey: "secret-key"
+    user: "minioadmin"
+
+defaultBuckets: "temperature-data"
+
+# Disable console for production if needed
+console:
+  enabled: false

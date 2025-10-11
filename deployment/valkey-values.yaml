@@ -1,0 +1,42 @@
+# valkey-values.yaml
+architecture: standalone
+replicaCount: 1
+
+image:
+  repository: valkey/valkey
+  tag: 8.0.0  # Latest Valkey version
+  pullPolicy: IfNotPresent
+
+auth:
+  enabled: false  # No password for development
+
+service:
+  type: ClusterIP
+  port: 6379
+
+persistence:
+  enabled: true
+  size: 1Gi
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi" 
+    cpu: "200m"
+
+# Valkey specific configuration
+config:
+  maxmemory: "256mb"
+  maxmemory-policy: "allkeys-lru"
+  timeout: "300"
+  tcp-keepalive: "60"
+
+readinessProbe:
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+livenessProbe:
+  initialDelaySeconds: 30
+  periodSeconds: 10

@@ -7,5 +7,5 @@ aiohttp==3.12.15
 prometheus-fastapi-instrumentator>=7.0.0
 prometheus-client>=0.17.0
 minio==7.1.15
-valkey==1.0.0
+valkey>=6.1.1
 python-multipart==0.0.6
