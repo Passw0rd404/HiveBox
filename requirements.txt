@@ -2,6 +2,10 @@ fastapi==0.115.12
 fastapi-cli==0.0.7
 uvicorn==0.23.2
 requests==2.31.0
-pylint==3.3.3
 asyncio==3.4.3
 aiohttp==3.12.15
+prometheus-fastapi-instrumentator>=7.0.0
+prometheus-client>=0.17.0
+minio==7.1.15
+valkey==1.0.0
+python-multipart==0.0.6

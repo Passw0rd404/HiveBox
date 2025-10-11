@@ -1,9 +1,0 @@
-# opening port 8000
-services:
-  app:
-    image: "passw0rd010/hivebox"
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8000"

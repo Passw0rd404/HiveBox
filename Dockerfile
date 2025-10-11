@@ -1,4 +1,4 @@
-FROM python:3.11-alpine
+FROM python:3.11-slim
 
 # PYTHONDONTWRITEBYTECODE=1 to prevent Python from writing .pyc files to disk
 # PYTHONUNBUFFERED=1 to ensure that the output of Python is sent straight to terminal
@@ -7,8 +7,9 @@ ENV PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
-# Install system dependencies first
-RUN apk add --no-cache gcc=10.3.1-r0 musl-dev=1.2.3-r4 linux-headers=6.1.55-r0
+# Install system dependencies first - use Debian package manager on python:*-slim images
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential=12.9 && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
 COPY requirements.txt .
