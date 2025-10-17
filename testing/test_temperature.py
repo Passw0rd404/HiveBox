@@ -141,8 +141,8 @@ class TestGetBoxesTemp:
     async def test_get_boxes_temp_success(self):
         """Test successful temperature retrieval from boxes."""
         # Mock the prometheus metrics that are used in get_boxes_temp
-        with patch("scr.endpoints.temperature.TEMPERATURE_API_REQUESTS"), patch(
-            "scr.endpoints.temperature.TEMPERATURE_API_DURATION"
+        with patch("src.endpoints.temperature.TEMPERATURE_API_REQUESTS"), patch(
+            "src.endpoints.temperature.TEMPERATURE_API_DURATION"
         ):
 
             # Create response mock
@@ -178,8 +178,8 @@ class TestGetBoxesTemp:
     @pytest.mark.asyncio
     async def test_get_boxes_temp_no_valid_data(self):
         """Test handling of boxes with no valid temperature data."""
-        with patch("scr.endpoints.temperature.TEMPERATURE_API_REQUESTS"), patch(
-            "scr.endpoints.temperature.TEMPERATURE_API_DURATION"
+        with patch("src.endpoints.temperature.TEMPERATURE_API_REQUESTS"), patch(
+            "src.endpoints.temperature.TEMPERATURE_API_DURATION"
         ):
 
             mock_response = MagicMock()
@@ -211,8 +211,8 @@ class TestGetBoxesTemp:
     @pytest.mark.asyncio
     async def test_get_boxes_temp_http_error(self):
         """Test handling of HTTP errors."""
-        with patch("scr.endpoints.temperature.TEMPERATURE_API_REQUESTS"), patch(
-            "scr.endpoints.temperature.TEMPERATURE_API_DURATION"
+        with patch("src.endpoints.temperature.TEMPERATURE_API_REQUESTS"), patch(
+            "src.endpoints.temperature.TEMPERATURE_API_DURATION"
         ):
 
             mock_response = MagicMock()
@@ -233,8 +233,8 @@ class TestGetBoxesTemp:
     @pytest.mark.asyncio
     async def test_get_boxes_temp_timeout(self):
         """Test handling of timeout errors."""
-        with patch("scr.endpoints.temperature.TEMPERATURE_API_REQUESTS"), patch(
-            "scr.endpoints.temperature.TEMPERATURE_API_DURATION"
+        with patch("src.endpoints.temperature.TEMPERATURE_API_REQUESTS"), patch(
+            "src.endpoints.temperature.TEMPERATURE_API_DURATION"
         ):
 
             mock_session = MagicMock()
@@ -254,15 +254,15 @@ class TestFallbackTemperature:
         """Test successful fallback temperature retrieval."""
         # Mock ALL prometheus metrics used in fallback_temperature
         with patch(
-            "scr.endpoints.temperature.CURRENT_TEMPERATURE"
+            "src.endpoints.temperature.CURRENT_TEMPERATURE"
         ) as mock_current_temp, patch(
-            "scr.endpoints.temperature.TEMPERATURE_DATA_QUALITY"
+            "src.endpoints.temperature.TEMPERATURE_DATA_QUALITY"
         ) as mock_quality, patch(
-            "scr.endpoints.temperature.TEMPERATURE_API_REQUESTS"
+            "src.endpoints.temperature.TEMPERATURE_API_REQUESTS"
         ), patch(
-            "scr.endpoints.temperature.TEMPERATURE_FALLBACK_USAGE"
+            "src.endpoints.temperature.TEMPERATURE_FALLBACK_USAGE"
         ) as mock_fallback, patch(
-            "scr.endpoints.temperature.TEMPERATURE_API_DURATION"
+            "src.endpoints.temperature.TEMPERATURE_API_DURATION"
         ):
 
             # Create response mock
@@ -291,10 +291,10 @@ class TestFallbackTemperature:
     @pytest.mark.asyncio
     async def test_fallback_temperature_api_failure(self):
         """Test fallback when API fails completely."""
-        with patch("scr.endpoints.temperature.TEMPERATURE_FALLBACK_USAGE"), patch(
-            "scr.endpoints.temperature.TEMPERATURE_API_REQUESTS"
-        ), patch("scr.endpoints.temperature.TEMPERATURE_API_DURATION"), patch(
-            "scr.endpoints.temperature.TEMPERATURE_DATA_QUALITY"
+        with patch("src.endpoints.temperature.TEMPERATURE_FALLBACK_USAGE"), patch(
+            "src.endpoints.temperature.TEMPERATURE_API_REQUESTS"
+        ), patch("src.endpoints.temperature.TEMPERATURE_API_DURATION"), patch(
+            "src.endpoints.temperature.TEMPERATURE_DATA_QUALITY"
         ):
 
             mock_session = MagicMock()
@@ -327,24 +327,24 @@ class TestGetAvgTempIntegration:
         ]
 
         # Mock all dependencies
-        with patch("scr.endpoints.temperature.get_boxes") as mock_get_boxes, patch(
-            "scr.endpoints.temperature.get_boxes_temp"
+        with patch("src.endpoints.temperature.get_boxes") as mock_get_boxes, patch(
+            "src.endpoints.temperature.get_boxes_temp"
         ) as mock_get_boxes_temp, patch(
-            "scr.endpoints.temperature.TEMPERATURE_BOXES_COUNT"
+            "src.endpoints.temperature.TEMPERATURE_BOXES_COUNT"
         ), patch(
-            "scr.endpoints.temperature.CURRENT_TEMPERATURE"
+            "src.endpoints.temperature.CURRENT_TEMPERATURE"
         ) as mock_current_temp, patch(
-            "scr.endpoints.temperature.TEMPERATURE_DATA_QUALITY"
+            "src.endpoints.temperature.TEMPERATURE_DATA_QUALITY"
         ) as mock_quality, patch(
-            "scr.endpoints.temperature.TEMPERATURE_STATUS"
+            "src.endpoints.temperature.TEMPERATURE_STATUS"
         ), patch(
-            "scr.endpoints.temperature.TEMPERATURE_SERVICE_STATUS"
+            "src.endpoints.temperature.TEMPERATURE_SERVICE_STATUS"
         ), patch(
-            "scr.endpoints.temperature.TEMPERATURE_API_REQUESTS"
+            "src.endpoints.temperature.TEMPERATURE_API_REQUESTS"
         ), patch(
-            "scr.endpoints.temperature.LAST_SUCCESSFUL_UPDATE"
+            "src.endpoints.temperature.LAST_SUCCESSFUL_UPDATE"
         ), patch(
-            "scr.endpoints.temperature.TEMPERATURE_API_DURATION"
+            "src.endpoints.temperature.TEMPERATURE_API_DURATION"
         ):
 
             mock_get_boxes.return_value = mock_boxes
@@ -365,16 +365,16 @@ class TestGetAvgTempIntegration:
     @pytest.mark.asyncio
     async def test_get_avg_temp_no_boxes(self):
         """Test behavior when no boxes are found."""
-        with patch("scr.endpoints.temperature.get_boxes") as mock_get_boxes, patch(
-            "scr.endpoints.temperature.fallback_temperature"
+        with patch("src.endpoints.temperature.get_boxes") as mock_get_boxes, patch(
+            "src.endpoints.temperature.fallback_temperature"
         ) as mock_fallback, patch(
-            "scr.endpoints.temperature.TEMPERATURE_BOXES_COUNT"
+            "src.endpoints.temperature.TEMPERATURE_BOXES_COUNT"
         ), patch(
-            "scr.endpoints.temperature.TEMPERATURE_SERVICE_STATUS"
+            "src.endpoints.temperature.TEMPERATURE_SERVICE_STATUS"
         ), patch(
-            "scr.endpoints.temperature.TEMPERATURE_API_REQUESTS"
+            "src.endpoints.temperature.TEMPERATURE_API_REQUESTS"
         ), patch(
-            "scr.endpoints.temperature.TEMPERATURE_API_DURATION"
+            "src.endpoints.temperature.TEMPERATURE_API_DURATION"
         ):
 
             mock_get_boxes.return_value = []  # No boxes found
@@ -398,12 +398,12 @@ class TestGetAvgTempIntegration:
             # Only one valid box - less than required minimum of 2
         ]
 
-        with patch("scr.endpoints.temperature.get_boxes") as mock_get_boxes, patch(
-            "scr.endpoints.temperature.check_boxes"
+        with patch("src.endpoints.temperature.get_boxes") as mock_get_boxes, patch(
+            "src.endpoints.temperature.check_boxes"
         ) as mock_check_boxes, patch(
-            "scr.endpoints.temperature.TEMPERATURE_BOXES_COUNT"
+            "src.endpoints.temperature.TEMPERATURE_BOXES_COUNT"
         ), patch(
-            "scr.endpoints.temperature.TEMPERATURE_API_DURATION"
+            "src.endpoints.temperature.TEMPERATURE_API_DURATION"
         ):
 
             mock_get_boxes.return_value = mock_boxes
@@ -416,12 +416,12 @@ class TestGetAvgTempIntegration:
     @pytest.mark.asyncio
     async def test_get_avg_temp_exception_handling(self):
         """Test exception handling in main function."""
-        with patch("scr.endpoints.temperature.get_boxes") as mock_get_boxes, patch(
-            "scr.endpoints.temperature.TEMPERATURE_API_REQUESTS"
+        with patch("src.endpoints.temperature.get_boxes") as mock_get_boxes, patch(
+            "src.endpoints.temperature.TEMPERATURE_API_REQUESTS"
         ) as mock_requests, patch(
-            "scr.endpoints.temperature.TEMPERATURE_SERVICE_STATUS"
+            "src.endpoints.temperature.TEMPERATURE_SERVICE_STATUS"
         ), patch(
-            "scr.endpoints.temperature.TEMPERATURE_API_DURATION"
+            "src.endpoints.temperature.TEMPERATURE_API_DURATION"
         ):
 
             mock_get_boxes.side_effect = Exception("Test error")
