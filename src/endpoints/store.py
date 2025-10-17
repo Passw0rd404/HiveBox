@@ -31,7 +31,7 @@ class MinIOStorage:
                 self.endpoint,
                 access_key=self.access_key,
                 secret_key=self.secret_key,
-                secure=self.secure
+                secure=self.secure,
             )
             self.bucket_name = "temperature-data"
             self._ensure_bucket_exists()
@@ -52,9 +52,9 @@ class MinIOStorage:
             logger.error("MinIO bucket error: %s", bucket_error)
             raise
 
-    async def store_temperature_data(self, temperature_data: float,
-                                   sensor_count: int,
-                                   storage_type: str = "manual"):
+    async def store_temperature_data(
+        self, temperature_data: float, sensor_count: int, storage_type: str = "manual"
+    ):
         """
         Store temperature data to MinIO.
 
@@ -82,24 +82,28 @@ class MinIOStorage:
                 "sensor_count": sensor_count,
                 "storage_type": storage_type,
                 "data_quality": data_quality,
-                "source": "opensensemap" if storage_type != "manual_fallback" else "fallback_api"
+                "source": "opensensemap"
+                if storage_type != "manual_fallback"
+                else "fallback_api",
             }
 
             # Create descriptive filename
-            timestamp = datetime.datetime.utcnow().strftime('%Y%m%d-%H%M%S')
+            timestamp = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M%S")
             filename = f"{storage_type}-{timestamp}.json"
 
             # Upload to MinIO
             self.minio_client.put_object(
                 self.bucket_name,
                 filename,
-                json.dumps(storage_data, indent=2).encode('utf-8'),
-                len(json.dumps(storage_data))
+                json.dumps(storage_data, indent=2).encode("utf-8"),
+                len(json.dumps(storage_data)),
             )
 
             logger.info(
                 "Temperature data stored: %s - %.2f°C from %d sensors",
-                filename, temperature_data, sensor_count
+                filename,
+                temperature_data,
+                sensor_count,
             )
             return True
 

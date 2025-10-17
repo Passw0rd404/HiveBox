@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 from unittest.mock import patch, AsyncMock, MagicMock
 import pytest
 
-from scr.endpoints.temperature import (
+from src.endpoints.temperature import (
     get_avg_temp,
     get_temperature_status,
     check_boxes,

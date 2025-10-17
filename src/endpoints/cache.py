@@ -33,7 +33,7 @@ class ValkeyCache:
                 decode_responses=True,
                 socket_connect_timeout=5,
                 socket_timeout=5,
-                health_check_interval=30
+                health_check_interval=30,
             )
             # Test connection
             self.client.ping()
@@ -45,7 +45,7 @@ class ValkeyCache:
     async def get_temperature(self) -> float | None:
         """
         Get cached temperature data.
-        
+
         Returns:
             float | None: Cached temperature or None if not found/expired
         """
@@ -67,11 +67,11 @@ class ValkeyCache:
     async def set_temperature(self, temperature: float, ttl: int = 300) -> bool:
         """
         Cache temperature data with TTL.
-        
+
         Args:
             temperature: Temperature value to cache
             ttl: Time to live in seconds (default: 5 minutes)
-            
+
         Returns:
             bool: True if successful, False otherwise
         """
@@ -82,15 +82,15 @@ class ValkeyCache:
             cache_data = {
                 "temperature": temperature,
                 "timestamp": self._current_timestamp(),
-                "source": "valkey_cache"
+                "source": "valkey_cache",
             }
             success = self.client.setex(
-                "temperature:current",
-                ttl,
-                json.dumps(cache_data)
+                "temperature:current", ttl, json.dumps(cache_data)
             )
             if success:
-                logger.debug("Temperature cached successfully in Valkey: %.2f°C", temperature)
+                logger.debug(
+                    "Temperature cached successfully in Valkey: %.2f°C", temperature
+                )
             return bool(success)
         except ValkeyError as e:
             logger.error("Error writing to Valkey cache: %s", e)
@@ -99,7 +99,7 @@ class ValkeyCache:
     async def get_storage_status(self) -> dict:
         """
         Get Valkey cache storage status.
-        
+
         Returns:
             dict: Cache status information
         """
@@ -116,7 +116,7 @@ class ValkeyCache:
                 "connected_clients": info.get("connected_clients", 0),
                 "keyspace_hits": info.get("keyspace_hits", 0),
                 "keyspace_misses": info.get("keyspace_misses", 0),
-                "hit_rate": self._calculate_hit_rate(info)
+                "hit_rate": self._calculate_hit_rate(info),
             }
         except ValkeyError as e:
             return {"available": False, "error": str(e)}
@@ -135,7 +135,7 @@ class ValkeyCache:
     async def get_cache_stats(self) -> dict:
         """
         Get detailed cache statistics.
-        
+
         Returns:
             dict: Detailed cache statistics
         """
@@ -153,7 +153,7 @@ class ValkeyCache:
                 "temperature_key_ttl": ttl,
                 "used_memory_human": memory_stats.get("used_memory_human", "0B"),
                 "instantaneous_ops_per_sec": stats.get("instantaneous_ops_per_sec", 0),
-                "total_commands_processed": stats.get("total_commands_processed", 0)
+                "total_commands_processed": stats.get("total_commands_processed", 0),
             }
         except ValkeyError as e:
             return {"error": str(e)}

@@ -13,7 +13,7 @@ from .main_monitoring import (
     ROOT_REQUESTS,
     ROOT_REQUEST_DURATION,
     VERSION_INFO,
-    initialize_metrics
+    initialize_metrics,
 )
 
 from .endpoints import temperature, version
@@ -28,7 +28,7 @@ app = FastAPI(title="Berlin Temperature API", version="0.5.0")
 async def get_temperature_with_cache() -> float:
     """
     Get temperature with Valkey cache layer.
-    
+
     Returns:
         float: Temperature value (may be from cache or fresh)
     """
@@ -76,15 +76,19 @@ async def scheduled_temperature_store():
                 success = await storage_client.store_temperature_data(
                     temperature_data=temperature_data,
                     sensor_count=sensor_count,
-                    storage_type=storage_type
+                    storage_type=storage_type,
                 )
 
                 if success:
-                    logger.info("Scheduled storage successful: %.2f°C", temperature_data)
+                    logger.info(
+                        "Scheduled storage successful: %.2f°C", temperature_data
+                    )
                 else:
                     logger.error("Scheduled storage failed")
             else:
-                logger.warning("Skipping scheduled storage - temperature service unavailable")
+                logger.warning(
+                    "Skipping scheduled storage - temperature service unavailable"
+                )
 
         except Exception as error:
             logger.error("Error in scheduled storage: %s", str(error))
@@ -98,7 +102,7 @@ async def startup():
     """Initialize application on startup."""
     initialize_metrics()
     # Set version info
-    VERSION_INFO.info({'version': version.get_version()})
+    VERSION_INFO.info({"version": version.get_version()})
 
     # Start the scheduled storage task
     asyncio.create_task(scheduled_temperature_store())
@@ -149,20 +153,20 @@ async def root() -> dict:
             "Hello": "to get the temperature in Berlin, go to /temperature",
             "endpoints": {
                 "temperature": "GET /temperature - Get current temperature",
-                "version": "GET /version - Get API version", 
+                "version": "GET /version - Get API version",
                 "store": "POST /store - Trigger immediate temperature storage",
                 "store_status": "GET /store/status - Check storage service status",
                 "store_test": "GET /store/test - Test MinIO connection",
                 "valkey_status": "GET /valkey/status - Check Valkey cache status",
                 "valkey_info": "GET /valkey/info - Get Valkey server info",
                 "health": "GET /healthz - Health check",
-                "ready": "GET /readyz - Readiness check"
+                "ready": "GET /readyz - Readiness check",
             },
             "features": {
                 "automatic_storage": "Every 5 minutes",
                 "manual_storage": "Via POST /store endpoint",
-                "caching": "Valkey cache with 5-minute TTL"
-            }
+                "caching": "Valkey cache with 5-minute TTL",
+            },
         }
     finally:
         duration = time.time() - start_time
@@ -220,7 +224,7 @@ async def get_temperature():
                     "avg_temperature_in_berlin": temp,
                     "status": "Service Unavailable",
                     "note": "Temperature services are currently unavailable. Please try again later.",
-                    "source": "fallback"
+                    "source": "fallback",
                 },
             )
 
@@ -237,13 +241,15 @@ async def get_temperature():
             status = "Moderate"
 
         # Check if data came from cache
-        cache_source = "cache" if await valkey_cache.get_temperature() is not None else "live"
+        cache_source = (
+            "cache" if await valkey_cache.get_temperature() is not None else "live"
+        )
 
         return {
-            "avg_temperature_in_berlin": temp, 
-            "status": status, 
+            "avg_temperature_in_berlin": temp,
+            "status": status,
             "unit": "°C",
-            "source": cache_source
+            "source": cache_source,
         }
 
     except Exception as error:
@@ -275,8 +281,8 @@ async def trigger_immediate_store():
                 content={
                     "status": "error",
                     "message": "Temperature service unavailable - not enough valid sensor data",
-                    "timestamp": datetime.datetime.utcnow().isoformat()
-                }
+                    "timestamp": datetime.datetime.utcnow().isoformat(),
+                },
             )
 
         # Determine storage type and sensor count based on temperature quality
@@ -297,7 +303,7 @@ async def trigger_immediate_store():
         success = await storage_client.store_temperature_data(
             temperature_data=temperature_data,
             sensor_count=sensor_count,
-            storage_type=storage_type
+            storage_type=storage_type,
         )
 
         # Update cache with fresh data
@@ -317,8 +323,8 @@ async def trigger_immediate_store():
                     "timestamp": datetime.datetime.utcnow().isoformat(),
                     "storage_type": storage_type,
                     "data_quality": data_quality,
-                    "cache_updated": True
-                }
+                    "cache_updated": True,
+                },
             )
 
         logger.error("Manual storage failed: MinIO storage error")
@@ -327,15 +333,15 @@ async def trigger_immediate_store():
             content={
                 "status": "error",
                 "message": "Failed to store temperature data to MinIO",
-                "timestamp": datetime.datetime.utcnow().isoformat()
-            }
+                "timestamp": datetime.datetime.utcnow().isoformat(),
+            },
         )
 
     except Exception as endpoint_error:
         logger.error("Error in manual storage endpoint: %s", str(endpoint_error))
         raise HTTPException(
             status_code=500,
-            detail=f"Error triggering immediate storage: {str(endpoint_error)}"
+            detail=f"Error triggering immediate storage: {str(endpoint_error)}",
         ) from endpoint_error
 
 
@@ -368,27 +374,27 @@ async def get_store_status():
 
         status_info = {
             "timestamp": datetime.datetime.utcnow().isoformat(),
-            "temperature_service": "available" if temperature_data != 503 else "unavailable",
+            "temperature_service": "available"
+            if temperature_data != 503
+            else "unavailable",
             "minio_storage": "available" if minio_available else "unavailable",
             "valkey_cache": cache_status.get("available", False),
-            "current_temperature": temperature_data if temperature_data != 503 else None,
+            "current_temperature": temperature_data
+            if temperature_data != 503
+            else None,
             "data_quality": "fallback" if temperature_data == 0.0 else "normal",
-            "automatic_storage": "active (every 5 minutes)"
+            "automatic_storage": "active (every 5 minutes)",
         }
 
         if temperature_data == 503:
             status_info["data_quality"] = "unavailable"
 
-        return JSONResponse(
-            status_code=200,
-            content=status_info
-        )
+        return JSONResponse(status_code=200, content=status_info)
 
     except Exception as status_error:
         logger.error("Error getting store status: %s", str(status_error))
         raise HTTPException(
-            status_code=500,
-            detail=f"Error getting storage status: {str(status_error)}"
+            status_code=500, detail=f"Error getting storage status: {str(status_error)}"
         ) from status_error
 
 
@@ -405,17 +411,17 @@ async def test_store_connection():
         test_data = {
             "test": True,
             "timestamp": datetime.datetime.utcnow().isoformat(),
-            "message": "Test connection to MinIO"
+            "message": "Test connection to MinIO",
         }
 
-        timestamp = datetime.datetime.utcnow().strftime('%Y%m%d-%H%M%S')
+        timestamp = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M%S")
         test_filename = f"test-connection-{timestamp}.json"
 
         storage_client.minio_client.put_object(
             storage_client.bucket_name,
             test_filename,
-            json.dumps(test_data).encode('utf-8'),
-            len(json.dumps(test_data))
+            json.dumps(test_data).encode("utf-8"),
+            len(json.dumps(test_data)),
         )
 
         return JSONResponse(
@@ -424,15 +430,14 @@ async def test_store_connection():
                 "status": "success",
                 "message": "MinIO connection test successful",
                 "test_file": test_filename,
-                "timestamp": datetime.datetime.utcnow().isoformat()
-            }
+                "timestamp": datetime.datetime.utcnow().isoformat(),
+            },
         )
 
     except Exception as test_error:
         logger.error("MinIO connection test failed: %s", str(test_error))
         raise HTTPException(
-            status_code=500,
-            detail=f"MinIO connection test failed: {str(test_error)}"
+            status_code=500, detail=f"MinIO connection test failed: {str(test_error)}"
         ) from test_error
 
 
@@ -445,21 +450,21 @@ async def get_storage_info():
         "automatic_storage": {
             "enabled": True,
             "interval": "5 minutes",
-            "purpose": "Regular temperature data collection"
+            "purpose": "Regular temperature data collection",
         },
         "manual_storage": {
             "enabled": True,
             "endpoint": "POST /store",
-            "purpose": "On-demand temperature data storage"
+            "purpose": "On-demand temperature data storage",
         },
         "storage_backend": "MinIO",
         "caching": {
             "enabled": True,
             "backend": "Valkey",
             "ttl": "5 minutes",
-            "purpose": "Reduce API calls and improve performance"
+            "purpose": "Reduce API calls and improve performance",
         },
-        "data_retention": "All historical data stored with timestamps"
+        "data_retention": "All historical data stored with timestamps",
     }
 
 
@@ -476,8 +481,8 @@ async def get_valkey_status():
                 "timestamp": datetime.datetime.utcnow().isoformat(),
                 "cache_engine": "valkey",
                 "status": cache_status,
-                "statistics": cache_stats
-            }
+                "statistics": cache_stats,
+            },
         )
     except Exception as error:
         logger.error("Error getting Valkey status: %s", str(error))
@@ -485,8 +490,8 @@ async def get_valkey_status():
             status_code=500,
             content={
                 "status": "error",
-                "message": f"Error getting Valkey status: {str(error)}"
-            }
+                "message": f"Error getting Valkey status: {str(error)}",
+            },
         )
 
 
@@ -507,23 +512,19 @@ async def get_valkey_info():
                         "uptime_in_seconds": info.get("uptime_in_seconds", 0),
                         "connected_clients": info.get("connected_clients", 0),
                         "used_memory": info.get("used_memory", 0),
-                        "used_memory_human": info.get("used_memory_human", "0B")
-                    }
-                }
+                        "used_memory_human": info.get("used_memory_human", "0B"),
+                    },
+                },
             )
         else:
             return JSONResponse(
                 status_code=503,
-                content={
-                    "status": "error",
-                    "message": "Valkey not connected"
-                }
+                content={"status": "error", "message": "Valkey not connected"},
             )
     except Exception as error:
         logger.error("Error getting Valkey info: %s", str(error))
         raise HTTPException(
-            status_code=500,
-            detail=f"Error getting Valkey info: {str(error)}"
+            status_code=500, detail=f"Error getting Valkey info: {str(error)}"
         ) from error
 
 
@@ -540,18 +541,17 @@ async def clear_cache():
             content={
                 "status": "success",
                 "message": "Temperature cache cleared",
-                "timestamp": datetime.datetime.utcnow().isoformat()
-            }
+                "timestamp": datetime.datetime.utcnow().isoformat(),
+            },
         )
     except Exception as error:
         logger.error("Error clearing cache: %s", str(error))
         raise HTTPException(
-            status_code=500,
-            detail=f"Error clearing cache: {str(error)}"
+            status_code=500, detail=f"Error clearing cache: {str(error)}"
         ) from error
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
-    
