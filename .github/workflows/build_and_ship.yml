@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - scr/**
+      - src/**
       - testing/**
       - requirements.txt
       - Dockerfile
@@ -35,6 +35,8 @@ jobs:
       run: |
         echo "Running pylint..."
         pylint $(git ls-files '*.py') --disable=invalid-name --fail-under-test=8.0
+
+
   build-artifact:
     runs-on: ubuntu-latest
 
