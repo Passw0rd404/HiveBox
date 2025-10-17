@@ -63,5 +63,5 @@ jobs:
         context: .
         push: true
         tags: |
-          ${{ secrets.DOCKER_USERNAME }}/hive_box:${{ github.sha }}
-          ${{ secrets.DOCKER_USERNAME }}/hive_box:latest
+          ${{ secrets.DOCKER_USERNAME }}/hivebox:${{ github.sha }}
+          ${{ secrets.DOCKER_USERNAME }}/hivebox:latest

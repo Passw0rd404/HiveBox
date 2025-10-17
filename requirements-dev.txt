@@ -4,5 +4,6 @@ pytest-html>=3.2.0              # HTML test reports
 pytest-xdist>=3.3.1             # Parallel test execution
 pytest-mock>=3.11.1             # Mocking utilities
 pytest-asyncio>=0.21.1          # For async/await testing
-pytest-env>=0.8.2   
+pytest-env>=0.8.2
 pylint==3.3.3            # Environment variable management for tests
+prometheus-client>=0.17.0

@@ -1,251 +1,447 @@
 """Unit tests for the temperature module."""
-import sys
-import os
-
-# Add the parent directory to Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
-import pytest
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone, timedelta
 from unittest.mock import patch, AsyncMock, MagicMock
-import aiohttp
+import pytest
 
-# Import the temperature module AFTER path adjustment
-from scr.endpoints import temperature as temp_module
+from scr.endpoints.temperature import (
+    get_avg_temp,
+    get_temperature_status,
+    check_boxes,
+    get_any_recent_boxes,
+    get_boxes_temp,
+    fallback_temperature,
+)
+
+
+class TestTemperatureStatus:
+    """Test temperature status categorization."""
+
+    def test_very_cold_temperature(self):
+        """Test temperature below 5°C returns 'very_cold'."""
+        assert get_temperature_status(4.9) == "very_cold"
+        assert get_temperature_status(-10) == "very_cold"
+
+    def test_cold_temperature(self):
+        """Test temperature between 5-10°C returns 'cold'."""
+        assert get_temperature_status(5.0) == "cold"
+        assert get_temperature_status(7.5) == "cold"
+        assert get_temperature_status(9.9) == "cold"
+
+    def test_moderate_temperature(self):
+        """Test temperature between 10-25°C returns 'moderate'."""
+        assert get_temperature_status(10.0) == "moderate"
+        assert get_temperature_status(15.0) == "moderate"
+        assert get_temperature_status(24.9) == "moderate"
+
+    def test_warm_temperature(self):
+        """Test temperature between 25-30°C returns 'warm'."""
+        assert get_temperature_status(25.0) == "warm"
+        assert get_temperature_status(27.5) == "warm"
+        assert get_temperature_status(29.9) == "warm"
+
+    def test_hot_temperature(self):
+        """Test temperature above 30°C returns 'hot'."""
+        assert get_temperature_status(30.0) == "hot"
+        assert get_temperature_status(35.0) == "hot"
+        assert get_temperature_status(40.0) == "hot"
 
 
 class TestCheckBoxes:
-    """Test the check_boxes function."""
+    """Test box validation logic."""
 
-    def test_check_boxes_with_recent_data(self):
-        """Test boxes with recent measurements are included."""
-        recent_time = datetime.now(timezone.utc) - timedelta(hours=1)
-        recent_time_str = recent_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-
+    def test_check_boxes_valid_recent_data(self):
+        """Test boxes with recent data are included."""
         boxes = [
-            {"_id": "box1", "lastMeasurementAt": recent_time_str, "name": "Test Box 1"}
+            {
+                "_id": "box1",
+                "lastMeasurementAt": datetime.now(timezone.utc).strftime(
+                    "%Y-%m-%dT%H:%M:%S.%fZ"
+                ),
+            },
+            {
+                "_id": "box2",
+                "lastMeasurementAt": (
+                    datetime.now(timezone.utc) - timedelta(hours=2)
+                ).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            },
         ]
 
-        result = temp_module.check_boxes(boxes)
-        assert len(result) == 1
-        assert "box1" in result
+        valid_boxes = check_boxes(boxes)
+        assert len(valid_boxes) == 2
+        assert "box1" in valid_boxes
+        assert "box2" in valid_boxes
 
-
-@pytest.mark.asyncio
-async def test_get_boxes_temp_success():
-    """Test successful temperature retrieval with proper mocking."""
-    # Create a properly mocked async context manager
-    mock_response = AsyncMock()
-    mock_response.status = 200
-    mock_response.json.return_value = {
-        "sensors": [
+    def test_check_boxes_old_data_excluded(self):
+        """Test boxes with old data are excluded."""
+        boxes = [
             {
-                "title": "Temperature",
-                "sensorType": "temperature",
-                "lastMeasurement": {"value": "21.5"},
+                "_id": "old_box",
+                "lastMeasurementAt": (
+                    datetime.now(timezone.utc) - timedelta(hours=4)
+                ).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
             }
         ]
-    }
 
-    # Mock the session.get to return a proper async context manager
-    mock_get = AsyncMock()
-    mock_get.__aenter__.return_value = mock_response
-    mock_get.__aexit__.return_value = None
+        valid_boxes = check_boxes(boxes)
+        assert len(valid_boxes) == 0
 
-    # Patch using the imported module directly
-    with patch.object(temp_module.aiohttp.ClientSession, "get", return_value=mock_get):
-        async with aiohttp.ClientSession() as session:
-            box_ids = ["test_box_1"]
-            result = await temp_module.get_boxes_temp(box_ids, session)
-            assert result == [21.5]
+    def test_check_boxes_missing_timestamp(self):
+        """Test boxes without timestamp are excluded."""
+        boxes = [
+            {
+                "_id": "no_timestamp_box",
+                # Missing lastMeasurementAt
+            }
+        ]
 
+        valid_boxes = check_boxes(boxes)
+        assert len(valid_boxes) == 0
 
-@pytest.mark.asyncio
-async def test_get_boxes_success():
-    """Test successful box retrieval."""
-    mock_response = AsyncMock()
-    mock_response.status = 200
-    mock_response.json.return_value = [
-        {
-            "_id": "box1",
-            "name": "Test Box 1",
-            "lastMeasurementAt": "2023-01-01T10:00:00.000Z",
-        }
-    ]
+    def test_check_boxes_invalid_timestamp_format(self):
+        """Test boxes with invalid timestamp format are handled gracefully."""
+        boxes = [
+            {"_id": "invalid_time_box", "lastMeasurementAt": "invalid-date-format"}
+        ]
 
-    mock_get = AsyncMock()
-    mock_get.__aenter__.return_value = mock_response
-    mock_get.__aexit__.return_value = None
-
-    # Patch using the imported module directly
-    with patch.object(temp_module.aiohttp.ClientSession, "get", return_value=mock_get):
-        async with aiohttp.ClientSession() as session:
-            result = await temp_module.get_boxes(session)
-            assert len(result) == 1
-            assert result[0]["_id"] == "box1"
+        # Should not raise an exception
+        valid_boxes = check_boxes(boxes)
+        assert len(valid_boxes) == 0
 
 
-@pytest.mark.asyncio
-async def test_fallback_temperature_success():
-    """Test successful fallback temperature."""
-    mock_response = AsyncMock()
-    mock_response.status = 200
-    mock_response.json.return_value = {"current": {"temperature_2m": 14.8}}
+class TestGetAnyRecentBoxes:
+    """Test fallback box selection logic."""
 
-    mock_get = AsyncMock()
-    mock_get.__aenter__.return_value = mock_response
-    mock_get.__aexit__.return_value = None
+    def test_get_any_recent_boxes_within_timeframe(self):
+        """Test boxes within extended timeframe are included."""
+        boxes = [
+            {
+                "_id": "recent_box",
+                "lastMeasurementAt": (
+                    datetime.now(timezone.utc) - timedelta(hours=12)
+                ).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            },
+            {
+                "_id": "old_box",
+                "lastMeasurementAt": (
+                    datetime.now(timezone.utc) - timedelta(hours=25)
+                ).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            },
+        ]
 
-    # Patch using the imported module directly
-    with patch.object(temp_module.aiohttp.ClientSession, "get", return_value=mock_get):
-        async with aiohttp.ClientSession() as session:
-            result = await temp_module.fallback_temperature(session)
-            assert result == 14.8
+        valid_boxes = get_any_recent_boxes(boxes, hours=24)
+        assert len(valid_boxes) == 1
+        assert "recent_box" in valid_boxes
 
 
-@pytest.mark.asyncio
-async def test_get_avg_temp_success():
-    """Test the main function with mocked dependencies."""
-    # Mock the internal functions that get_avg_temp calls
-    with patch.object(temp_module, "get_boxes") as mock_get_boxes, patch.object(
-        temp_module, "get_boxes_temp"
-    ) as mock_get_boxes_temp:
+class TestGetBoxesTemp:
+    """Test temperature fetching from individual boxes."""
 
-        # Setup mock returns
-        mock_get_boxes.return_value = [
+    @pytest.mark.asyncio
+    async def test_get_boxes_temp_success(self):
+        """Test successful temperature retrieval from boxes."""
+        # Mock the prometheus metrics that are used in get_boxes_temp
+        with patch("scr.endpoints.temperature.TEMPERATURE_API_REQUESTS"), patch(
+            "scr.endpoints.temperature.TEMPERATURE_API_DURATION"
+        ):
+
+            # Create response mock
+            mock_response = MagicMock()
+            mock_response.status = 200
+            mock_response.json = AsyncMock(
+                return_value={
+                    "sensors": [
+                        {
+                            "title": "Temperature Sensor",
+                            "sensorType": "temperature",
+                            "lastMeasurement": {"value": "22.5"},
+                        }
+                    ]
+                }
+            )
+
+            # Create a proper async context manager using MagicMock
+            mock_cm = MagicMock()
+            mock_cm.__aenter__ = AsyncMock(return_value=mock_response)
+            mock_cm.__aexit__ = AsyncMock(return_value=None)
+
+            # Create session mock
+            mock_session = MagicMock()
+            mock_session.get = MagicMock(return_value=mock_cm)
+
+            box_ids = ["box1", "box2"]
+            temperatures = await get_boxes_temp(box_ids, mock_session)
+
+            assert len(temperatures) == 2
+            assert all(temp == 22.5 for temp in temperatures)
+
+    @pytest.mark.asyncio
+    async def test_get_boxes_temp_no_valid_data(self):
+        """Test handling of boxes with no valid temperature data."""
+        with patch("scr.endpoints.temperature.TEMPERATURE_API_REQUESTS"), patch(
+            "scr.endpoints.temperature.TEMPERATURE_API_DURATION"
+        ):
+
+            mock_response = MagicMock()
+            mock_response.status = 200
+            mock_response.json = AsyncMock(
+                return_value={
+                    "sensors": [
+                        {
+                            "title": "Humidity Sensor",  # Wrong sensor type
+                            "sensorType": "humidity",
+                            "lastMeasurement": {"value": "65"},
+                        }
+                    ]
+                }
+            )
+
+            mock_cm = MagicMock()
+            mock_cm.__aenter__ = AsyncMock(return_value=mock_response)
+            mock_cm.__aexit__ = AsyncMock(return_value=None)
+
+            mock_session = MagicMock()
+            mock_session.get = MagicMock(return_value=mock_cm)
+
+            box_ids = ["box1"]
+            temperatures = await get_boxes_temp(box_ids, mock_session)
+
+            assert len(temperatures) == 0
+
+    @pytest.mark.asyncio
+    async def test_get_boxes_temp_http_error(self):
+        """Test handling of HTTP errors."""
+        with patch("scr.endpoints.temperature.TEMPERATURE_API_REQUESTS"), patch(
+            "scr.endpoints.temperature.TEMPERATURE_API_DURATION"
+        ):
+
+            mock_response = MagicMock()
+            mock_response.status = 404
+
+            mock_cm = MagicMock()
+            mock_cm.__aenter__ = AsyncMock(return_value=mock_response)
+            mock_cm.__aexit__ = AsyncMock(return_value=None)
+
+            mock_session = MagicMock()
+            mock_session.get = MagicMock(return_value=mock_cm)
+
+            box_ids = ["box1"]
+            temperatures = await get_boxes_temp(box_ids, mock_session)
+
+            assert len(temperatures) == 0
+
+    @pytest.mark.asyncio
+    async def test_get_boxes_temp_timeout(self):
+        """Test handling of timeout errors."""
+        with patch("scr.endpoints.temperature.TEMPERATURE_API_REQUESTS"), patch(
+            "scr.endpoints.temperature.TEMPERATURE_API_DURATION"
+        ):
+
+            mock_session = MagicMock()
+            mock_session.get = MagicMock(side_effect=asyncio.TimeoutError())
+
+            box_ids = ["box1"]
+            temperatures = await get_boxes_temp(box_ids, mock_session)
+
+            assert len(temperatures) == 0
+
+
+class TestFallbackTemperature:
+    """Test fallback temperature API."""
+
+    @pytest.mark.asyncio
+    async def test_fallback_temperature_success(self):
+        """Test successful fallback temperature retrieval."""
+        # Mock ALL prometheus metrics used in fallback_temperature
+        with patch(
+            "scr.endpoints.temperature.CURRENT_TEMPERATURE"
+        ) as mock_current_temp, patch(
+            "scr.endpoints.temperature.TEMPERATURE_DATA_QUALITY"
+        ) as mock_quality, patch(
+            "scr.endpoints.temperature.TEMPERATURE_API_REQUESTS"
+        ), patch(
+            "scr.endpoints.temperature.TEMPERATURE_FALLBACK_USAGE"
+        ) as mock_fallback, patch(
+            "scr.endpoints.temperature.TEMPERATURE_API_DURATION"
+        ):
+
+            # Create response mock
+            mock_response = MagicMock()
+            mock_response.status = 200
+            mock_response.json = AsyncMock(
+                return_value={"current": {"temperature_2m": 18.7}}
+            )
+
+            # Create a proper async context manager using MagicMock
+            mock_cm = MagicMock()
+            mock_cm.__aenter__ = AsyncMock(return_value=mock_response)
+            mock_cm.__aexit__ = AsyncMock(return_value=None)
+
+            # Create session mock
+            mock_session = MagicMock()
+            mock_session.get = MagicMock(return_value=mock_cm)
+
+            temperature = await fallback_temperature(mock_session)
+
+            assert temperature == 18.7
+            mock_current_temp.set.assert_called_once_with(18.7)
+            mock_quality.set.assert_called_once_with(0)
+            mock_fallback.inc.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_fallback_temperature_api_failure(self):
+        """Test fallback when API fails completely."""
+        with patch("scr.endpoints.temperature.TEMPERATURE_FALLBACK_USAGE"), patch(
+            "scr.endpoints.temperature.TEMPERATURE_API_REQUESTS"
+        ), patch("scr.endpoints.temperature.TEMPERATURE_API_DURATION"), patch(
+            "scr.endpoints.temperature.TEMPERATURE_DATA_QUALITY"
+        ):
+
+            mock_session = MagicMock()
+            mock_session.get = MagicMock(side_effect=Exception("API unavailable"))
+
+            temperature = await fallback_temperature(mock_session)
+
+            assert temperature == 0.0
+
+
+class TestGetAvgTempIntegration:
+    """Integration tests for the main get_avg_temp function."""
+
+    @pytest.mark.asyncio
+    async def test_get_avg_temp_success(self):
+        """Test successful temperature averaging with valid boxes."""
+        mock_boxes = [
+            {
+                "_id": "box1",
+                "lastMeasurementAt": datetime.now(timezone.utc).strftime(
+                    "%Y-%m-%dT%H:%M:%S.%fZ"
+                ),
+            },
+            {
+                "_id": "box2",
+                "lastMeasurementAt": datetime.now(timezone.utc).strftime(
+                    "%Y-%m-%dT%H:%M:%SZ"
+                ),
+            },
+        ]
+
+        # Mock all dependencies
+        with patch("scr.endpoints.temperature.get_boxes") as mock_get_boxes, patch(
+            "scr.endpoints.temperature.get_boxes_temp"
+        ) as mock_get_boxes_temp, patch(
+            "scr.endpoints.temperature.TEMPERATURE_BOXES_COUNT"
+        ), patch(
+            "scr.endpoints.temperature.CURRENT_TEMPERATURE"
+        ) as mock_current_temp, patch(
+            "scr.endpoints.temperature.TEMPERATURE_DATA_QUALITY"
+        ) as mock_quality, patch(
+            "scr.endpoints.temperature.TEMPERATURE_STATUS"
+        ), patch(
+            "scr.endpoints.temperature.TEMPERATURE_SERVICE_STATUS"
+        ), patch(
+            "scr.endpoints.temperature.TEMPERATURE_API_REQUESTS"
+        ), patch(
+            "scr.endpoints.temperature.LAST_SUCCESSFUL_UPDATE"
+        ), patch(
+            "scr.endpoints.temperature.TEMPERATURE_API_DURATION"
+        ):
+
+            mock_get_boxes.return_value = mock_boxes
+            mock_get_boxes_temp.return_value = [
+                22.0,
+                23.0,
+                24.0,
+            ]  # Average should be 23.0
+
+            result = await get_avg_temp()
+
+            assert result == 23.0
+            mock_get_boxes.assert_called_once()
+            mock_get_boxes_temp.assert_called_once()
+            mock_current_temp.set.assert_called_once_with(23.0)
+            mock_quality.set.assert_called_once_with(2)  # 3 sources = quality 2
+
+    @pytest.mark.asyncio
+    async def test_get_avg_temp_no_boxes(self):
+        """Test behavior when no boxes are found."""
+        with patch("scr.endpoints.temperature.get_boxes") as mock_get_boxes, patch(
+            "scr.endpoints.temperature.fallback_temperature"
+        ) as mock_fallback, patch(
+            "scr.endpoints.temperature.TEMPERATURE_BOXES_COUNT"
+        ), patch(
+            "scr.endpoints.temperature.TEMPERATURE_SERVICE_STATUS"
+        ), patch(
+            "scr.endpoints.temperature.TEMPERATURE_API_REQUESTS"
+        ), patch(
+            "scr.endpoints.temperature.TEMPERATURE_API_DURATION"
+        ):
+
+            mock_get_boxes.return_value = []  # No boxes found
+            mock_fallback.return_value = 19.5
+
+            result = await get_avg_temp()
+
+            assert result == 19.5
+            mock_fallback.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_avg_temp_not_enough_valid_boxes(self):
+        """Test behavior when not enough valid boxes are available."""
+        mock_boxes = [
             {
                 "_id": "box1",
                 "lastMeasurementAt": datetime.now(timezone.utc).strftime(
                     "%Y-%m-%dT%H:%M:%S.%fZ"
                 ),
             }
+            # Only one valid box - less than required minimum of 2
         ]
-        mock_get_boxes_temp.return_value = [19.0, 20.0, 21.0]  # Average should be 20.0
 
-        result = await temp_module.get_avg_temp()
-        assert result == 20.0
+        with patch("scr.endpoints.temperature.get_boxes") as mock_get_boxes, patch(
+            "scr.endpoints.temperature.check_boxes"
+        ) as mock_check_boxes, patch(
+            "scr.endpoints.temperature.TEMPERATURE_BOXES_COUNT"
+        ), patch(
+            "scr.endpoints.temperature.TEMPERATURE_API_DURATION"
+        ):
 
+            mock_get_boxes.return_value = mock_boxes
+            mock_check_boxes.return_value = ["box1"]  # Only one valid box
 
-@pytest.mark.asyncio
-async def test_get_avg_temp_fallback():
-    """Test fallback when no boxes are found."""
-    with patch.object(temp_module, "get_boxes") as mock_get_boxes, patch.object(
-        temp_module, "fallback_temperature"
-    ) as mock_fallback:
+            result = await get_avg_temp()
 
-        mock_get_boxes.return_value = []  # No boxes found
-        mock_fallback.return_value = 15.5
+            assert result == 503  # Service unavailable
 
-        result = await temp_module.get_avg_temp()
-        assert result == 15.5
+    @pytest.mark.asyncio
+    async def test_get_avg_temp_exception_handling(self):
+        """Test exception handling in main function."""
+        with patch("scr.endpoints.temperature.get_boxes") as mock_get_boxes, patch(
+            "scr.endpoints.temperature.TEMPERATURE_API_REQUESTS"
+        ) as mock_requests, patch(
+            "scr.endpoints.temperature.TEMPERATURE_SERVICE_STATUS"
+        ), patch(
+            "scr.endpoints.temperature.TEMPERATURE_API_DURATION"
+        ):
 
+            mock_get_boxes.side_effect = Exception("Test error")
 
-def test_check_boxes_function():
-    """Test the synchronous check_boxes function."""
-    # Test with recent data (within 3 hours)
-    recent_time = datetime.now(timezone.utc) - timedelta(minutes=30)
-    boxes = [
-        {
-            "_id": "box1",
-            "lastMeasurementAt": recent_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-        }
-    ]
+            with pytest.raises(Exception, match="Test error"):
+                await get_avg_temp()
 
-    result = temp_module.check_boxes(boxes)
-    assert "box1" in result
-
-    # Test with old data (should be excluded - older than 3 hours)
-    old_time = datetime.now(timezone.utc) - timedelta(hours=4)
-    boxes = [
-        {"_id": "box2", "lastMeasurementAt": old_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")}
-    ]
-
-    result = temp_module.check_boxes(boxes)
-    assert "box2" not in result
+            # Verify metrics were updated even on error
+            mock_requests.labels.assert_called_with(
+                api_source="opensensemap", status="error"
+            )
 
 
-def test_get_any_recent_boxes():
-    """Test the fallback box selection function."""
-    current_time = datetime.now(timezone.utc)
-
-    # Create boxes with different ages
-    recent_box = {
-        "_id": "recent",
-        "lastMeasurementAt": (current_time - timedelta(hours=12)).strftime(
-            "%Y-%m-%dT%H:%M:%S.%fZ"
-        ),
-    }
-
-    old_box = {
-        "_id": "old",
-        "lastMeasurementAt": (current_time - timedelta(hours=36)).strftime(
-            "%Y-%m-%dT%H:%M:%S.%fZ"
-        ),
-    }
-
-    boxes = [recent_box, old_box]
-    result = temp_module.get_any_recent_boxes(boxes, hours=24)
-
-    assert len(result) == 1
-    assert "recent" in result
-    assert "old" not in result
-
-
-# Test for edge cases
-@pytest.mark.asyncio
-async def test_get_boxes_temp_no_sensors():
-    """Test when box has no temperature sensors."""
-    mock_response = AsyncMock()
-    mock_response.status = 200
-    mock_response.json.return_value = {
-        "sensors": [
-            {
-                "title": "Humidity",
-                "sensorType": "humidity",
-                "lastMeasurement": {"value": "65"},
-            }
-        ]
-    }
-
-    mock_get = AsyncMock()
-    mock_get.__aenter__.return_value = mock_response
-    mock_get.__aexit__.return_value = None
-
-    # Patch using the imported module directly
-    with patch.object(temp_module.aiohttp.ClientSession, "get", return_value=mock_get):
-        async with aiohttp.ClientSession() as session:
-            box_ids = ["test_box_1"]
-            result = await temp_module.get_boxes_temp(box_ids, session)
-            assert result == []  # No temperature sensors found
-
-
-@pytest.mark.asyncio
-async def test_get_boxes_temp_invalid_value():
-    """Test when temperature value is invalid."""
-    mock_response = AsyncMock()
-    mock_response.status = 200
-    mock_response.json.return_value = {
-        "sensors": [
-            {
-                "title": "Temperature",
-                "sensorType": "temperature",
-                "lastMeasurement": {"value": "invalid"},
-            }
-        ]
-    }
-
-    mock_get = AsyncMock()
-    mock_get.__aenter__.return_value = mock_response
-    mock_get.__aexit__.return_value = None
-
-    # Patch using the imported module directly
-    with patch.object(temp_module.aiohttp.ClientSession, "get", return_value=mock_get):
-        async with aiohttp.ClientSession() as session:
-            box_ids = ["test_box_1"]
-            result = await temp_module.get_boxes_temp(box_ids, session)
-            assert result == []  # Invalid temperature value
+# Test configuration
+def pytest_configure(config):
+    """Pytest configuration hook."""
+    # Mark all tests as asyncio by default
+    config.option.asyncio_mode = "auto"
 
 
 if __name__ == "__main__":
+    # Run tests directly
     pytest.main([__file__, "-v"])
