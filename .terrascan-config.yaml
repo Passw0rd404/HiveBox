@@ -1,0 +1,42 @@
+# .terrascan-config.yaml
+scan:
+  # Only include rules relevant to your infrastructure
+  rules:
+    # EKS Rules
+    - "AWS.EKS.CS.High.0939"  # EKS cluster should have control plane logging enabled
+    - "AWS.EKS.CS.High.0940"  # EKS cluster should have secrets encryption enabled
+    - "AWS.EKS.CS.Medium.0941" # EKS cluster endpoint should not be publicly accessible
+    - "AWS.EKS.CS.Medium.0942" # EKS cluster should have public access disabled
+
+    # VPC Rules
+    - "AWS.VPC.NetworkSecurity.High.0572"  # Default security group should not allow inbound traffic
+    - "AWS.VPC.NetworkSecurity.High.0574"  # VPC flow logs should be enabled
+    - "AWS.VPC.NetworkSecurity.Medium.0575" # Security groups should not have unrestricted ingress
+
+    # ALB/ELB Rules
+    - "AWS.ELB.NS.Medium.0986"  # ALB should have access logs enabled
+    - "AWS.ELB.NS.Medium.0988"  # ALB should have deletion protection enabled
+
+    # Auto Scaling Rules
+    - "AWS.AutoScaling.NS.Medium.0062"  # Auto Scaling groups should use health checks
+    - "AWS.AutoScaling.NS.Medium.0063"  # Auto Scaling groups should have termination policies
+
+    # IAM Rules
+    - "AWS.IAM.IAM.High.0199"  # IAM policies should not have full administrative privileges
+    - "AWS.IAM.IAM.High.0196"  # IAM policies should not grant full access to resources
+    - "AWS.IAM.IAM.Medium.0197" # IAM policies should not allow wildcard actions
+    - "AWS.IAM.IAM.Medium.0198" # IAM roles should not have excessive permissions
+
+  # Skip irrelevant rules
+  skip-rules:
+    # Skip S3, RDS, Lambda, etc. since you're not using them
+    - "AWS.S3Bucket.*"
+    - "AWS.RDS.*"
+    - "AWS.Lambda.*"
+    - "AWS.CloudFront.*"
+    - "AWS.EC2.NS.*"  # Skip general EC2 rules if you're only using ASG
+    - "AWS.KMS.*"     # Skip KMS if not explicitly using
+    - "AWS.CloudTrail.*"
+    - "AWS.Config.*"
+
+  severity: "HIGH,MEDIUM"  # Only show high and medium severity issues

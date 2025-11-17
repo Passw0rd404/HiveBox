@@ -1,0 +1,107 @@
+# Default values for HiveBox.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+nameOverride: "hivebox"
+fullnameOverride: "hivebox"
+# App configuration
+app:
+  repository: passw0rd010/hivebox
+  pullPolicy: IfNotPresent
+  tag: "latest"
+  env:
+    MINIO_ENDPOINT: "minio.storage.svc.cluster.local:9000"
+    MINIO_ACCESS_KEY: "minioadmin"  # ADDED - your app needs this
+    MINIO_SECRET_KEY: "minioadmin123"  # ADDED - your app needs this
+    MINIO_SECURE: "false"
+    VALKEY_HOST: "valkey.storage.svc.cluster.local"  # FIXED hostname
+    VALKEY_PORT: "6379"
+    VALKEY_PASSWORD: ""
+    VALKEY_DB: "0"
+    PROMETHEUS_MULTIPROC_DIR: "/tmp"  # ADDED for Prometheus metrics
+
+# Namespaces
+monitoring-namespace: monitoring
+namespace: default  # CHANGED to default for simplicity
+storage-namespace: storage
+
+imagePullSecrets: []
+fullnameOverride: ""
+
+# Pod configuration
+podAnnotations:
+  prometheus.io/scrape: "true"  # MOVED from service to pod
+  prometheus.io/path: "/metrics"
+  prometheus.io/port: "8000"
+
+podLabels: {}
+
+podSecurityContext:
+  seccompProfile:
+    type: RuntimeDefault
+  runAsUser: 1001
+  runAsGroup: 1001
+  runAsNonRoot: true
+
+securityContext:
+  allowPrivilegeEscalation: false
+  privileged: false
+  readOnlyRootFilesystem: true  # ADDED for security
+  runAsNonRoot: true
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 8000
+  annotations: {}  # REMOVED Prometheus annotations (moved to pod)
+
+# Ingress (disabled for dev)
+ingress:
+  enabled: false
+  # ... rest of ingress config
+
+# Add this to your values.yaml
+httpRoute:
+  enabled: false
+
+# Resources - OPTIMIZED for dev
+resources:
+  limits:
+    cpu: "300m"    # Reduced from 500m
+    memory: "256Mi" # Increased from 100Mi (Python apps need more memory)
+  requests:
+    memory: "128Mi"
+    cpu: "100m"    # Reduced from 250m
+
+# MinIO configuration - REMOVED (use separate minio-values.yaml)
+# minio: []
+
+# Probes
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 8000
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  successThreshold: 1
+  failureThreshold: 3
+
+# Autoscaling (disabled for dev)
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Volumes
+volumes:
+  - name: prometheus-multiproc-dir  # ADDED for Prometheus metrics
+    emptyDir: {}
+
+volumeMounts:
+  - name: prometheus-multiproc-dir  # ADDED for Prometheus metrics
+    mountPath: "/tmp"

@@ -1,6 +1,7 @@
 name: build and ship artifact
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main ]
     paths:
@@ -9,12 +10,20 @@ on:
       - requirements.txt
       - Dockerfile
 
-jobs:
-  build-and-lint-code:
-    name: Build & Lint
-    runs-on: ubuntu-latest
+permissions:
+  contents: read # for actions/checkout to fetch code
+  security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
 
+jobs:
+  linting:
+    name: Linting
+    runs-on: ubuntu-latest
     steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@v2
+      with:
+        egress-policy: audit
+
     - name: Checkout code
       uses: actions/checkout@v4
 
@@ -22,9 +31,8 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
-        cache: 'pip'  # Cache pip dependencies
-        cache-dependency-path: requirements.txt  # Cache dependencies based on requirements.txt
-        # This will cache the pip dependencies based on the requirements.txt file.
+        cache: 'pip'
+        cache-dependency-path: requirements.txt
 
     - name: Install dependencies
       run: |
@@ -34,35 +42,91 @@ jobs:
     - name: Run pylint
       run: |
         echo "Running pylint..."
-        pylint $(git ls-files '*.py') --disable=invalid-name --fail-under-test=8.0
+        pylint $(git ls-files '*.py') --disable=invalid-name --fail-under=8.0
 
+    - name: Run hadolint
+      uses: hadolint/hadolint-action@f988afea3da57ee48710a9795b6bb677cc901183
+      with:
+        dockerfile: ./Dockerfile
+        format: sarif
+        output-file: hadolint-results.sarif
+        no-fail: true
 
-  build-artifact:
+    - name: Upload analysis results to GitHub
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: hadolint-results.sarif
+        wait-for-processing: true
+
+  build-scan-push:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Harden Runner
-      uses: step-security/harden-runner@v2
-      with:
-        egress-policy: audit
-
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
-    - name: Set up Docker
-      uses: docker/setup-buildx-action@v2
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
 
     - name: Log in to Docker Hub
-      uses: docker/login-action@v2
+      uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v2
+    - name: Build image
+      uses: docker/build-push-action@v5
+      id: build
       with:
         context: .
-        push: true
+        push: false  # Build first, push after scan
         tags: |
           ${{ secrets.DOCKER_USERNAME }}/hivebox:${{ github.sha }}
           ${{ secrets.DOCKER_USERNAME }}/hivebox:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        outputs: type=docker,dest=/tmp/image.tar
+
+    - name: Run Docker Scout comprehensive scan
+      uses: docker/scout-action@v1
+      with:
+        command: cves
+        image: /tmp/image.tar
+        only-severities: critical,high
+        exit-code: true  # Fail if critical/high vulnerabilities
+        format: sarif
+        output: docker-scout-results.sarif
+
+    - name: Generate SBOM
+      uses: docker/scout-action@v1
+      with:
+        command: sbom
+        image: /tmp/image.tar
+        format: spdx-json
+        output: sbom.spdx.json
+
+    - name: Compare with base image
+      uses: docker/scout-action@v1
+      with:
+        command: compare
+        image: /tmp/image.tar
+        to: python:3.10-slim  # Your base image
+        format: table
+
+    - name: Push image (only if scan passes)
+      if: success()
+      run: |
+        docker load < /tmp/image.tar
+        docker push ${{ secrets.DOCKER_USERNAME }}/hivebox:${{ github.sha }}
+        docker push ${{ secrets.DOCKER_USERNAME }}/hivebox:latest
+
+    - name: Upload SARIF results
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: docker-scout-results.sarif
+
+    - name: Upload SBOM
+      uses: actions/upload-artifact@v4
+      with:
+        name: sbom
+        path: sbom.spdx.json

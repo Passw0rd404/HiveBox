@@ -1,0 +1,78 @@
+version: '3'
+
+tasks:
+  prod:deploy:
+    desc: "Deploy all services for production"
+    cmds:
+      - task: prod:create-namespaces
+      - task: prod:deploy-dependencies
+      - task: prod:deploy-app
+      - echo "Production deployment complete!"
+      - echo "HiveBox API will be available at the ALB DNS name"
+      - echo "Run 'task:prod:get-ingress' to get the ALB URL"
+
+  prod:create-namespaces:
+    desc: "Create production namespaces"
+    cmds:
+      - kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+      - kubectl create namespace storage --dry-run=client -o yaml | kubectl apply -f -
+      - kubectl create namespace hivebox-production --dry-run=client -o yaml | kubectl apply -f -
+
+  prod:deploy-dependencies:
+    desc: "Deploy production dependencies"
+    cmds:
+      - helm upgrade --install minio minio/minio -n storage -f minio-values.yaml --wait
+      - helm upgrade --install valkey valkey/valkey -n storage -f valkey-values.yaml --wait
+      - helm upgrade --install prometheus prometheus-community/kube-prometheus-stack -n monitoring -f prometheus-values.yaml --wait
+
+  prod:deploy-app:
+    desc: "Deploy HiveBox app for production"
+    cmds:
+      - helm upgrade --install hivebox ../HiveBox -n hivebox-production -f values.yaml --wait
+
+  prod:port-forward:
+    desc: "Start port forwarding for production monitoring"
+    cmds:
+      - kubectl port-forward -n monitoring svc/grafana 3000:3000 &
+      - kubectl port-forward -n storage svc/minio-console 9001:9001 &
+      - kubectl port-forward -n monitoring svc/prometheus-server 9090:9090 &
+      - echo "Port forwarding started for monitoring services"
+      - echo "Press Ctrl+C to stop all port forwarding"
+      - wait
+
+  prod:get-ingress:
+    desc: "Get the production ALB DNS name"
+    cmds:
+      - echo "HiveBox API ALB URL:"
+      - kubectl get ingress -n hivebox-production -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}'
+      - echo ""
+
+  prod:logs:
+    desc: "Tail logs from production HiveBox app"
+    cmds:
+      - kubectl logs -n hivebox-production -f deployment/hivebox
+
+  prod:status:
+    desc: "Check status of all production services"
+    cmds:
+      - echo "=== Helm Releases ==="
+      - helm list -A
+      - echo ""
+      - echo "=== Pods ==="
+      - kubectl get pods -A
+      - echo ""
+      - echo "=== Services ==="
+      - kubectl get svc -A
+      - echo ""
+      - echo "=== Ingress ==="
+      - kubectl get ingress -A
+
+  prod:cleanup:
+    desc: "Clean up all production resources"
+    cmds:
+      - helm uninstall hivebox -n hivebox-production || true
+      - helm uninstall prometheus -n monitoring || true
+      - helm uninstall valkey -n storage || true
+      - helm uninstall minio -n storage || true
+      - kubectl delete namespace hivebox-production monitoring storage --ignore-not-found=true
+      - echo "Production environment cleaned up"

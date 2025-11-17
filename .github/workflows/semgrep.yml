@@ -1,0 +1,41 @@
+name: Semgrep Security Scan
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'testing/**'
+      - 'Dockerfile'
+      - 'requirements*.txt'
+
+permissions:
+  contents: read # for actions/checkout to fetch code
+  security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
+
+jobs:
+  semgrep-scan:
+    name: Semgrep Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for better analysis
+
+    - name: Run Semgrep
+      uses: returntocorp/semgrep-action@v1
+      with:
+        # Use array format for config (more reliable)
+        config: |
+          p/security-audit
+          p/secrets
+          p/ci
+          p/python
+          p/docker
+
+    - name: Upload results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: semgrep.sarif

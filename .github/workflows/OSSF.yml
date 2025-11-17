@@ -4,8 +4,11 @@ on:
   push:
     branches: [ "main" ]
 
-# Declare default permissions as read only.
-permissions: read-all
+# Workflow-level permissions for OpenSSF Scorecard
+permissions:
+  id-token: write    # REQUIRED - for OIDC token authentication
+  contents: read     # REQUIRED - to read repository contents
+  actions: read      # REQUIRED - to read workflow information
 
 jobs:
   analysis:

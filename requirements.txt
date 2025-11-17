@@ -9,3 +9,4 @@ prometheus-client>=0.17.0
 minio==7.1.15
 valkey>=6.1.1
 python-multipart==0.0.6
+pylint>=3.0.0

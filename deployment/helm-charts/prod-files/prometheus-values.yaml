@@ -1,0 +1,146 @@
+# prometheus-values.yaml - Production Configuration
+
+prometheus:
+  namespace: monitoring
+  enabled: true
+
+  server:
+    persistentVolume:
+      enabled: true
+      storageClass: "gp2"
+      size: 5Gi
+
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+    retention: "15d"
+    retentionSize: "4Gi"
+
+    extraScrapeConfigs: |
+      - job_name: 'hivebox-app'
+        kubernetes_sd_configs:
+        - role: endpoints
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+          action: keep
+          regex: true
+        - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+        - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+          action: replace
+          regex: (.+)(?::\d+);(\d+)
+          replacement: $1:$2
+          target_label: __address__
+        - source_labels: [__meta_kubernetes_namespace]
+          action: replace
+          target_label: kubernetes_namespace
+        - source_labels: [__meta_kubernetes_pod_name]
+          action: replace
+          target_label: kubernetes_pod_name
+
+  alertmanager:
+    enabled: true
+    config:
+      global:
+        smtp_smarthost: 'smtp.yourcompany.com:587'
+        smtp_from: 'alertmanager@yourcompany.com'
+      route:
+        group_by: ['alertname']
+        group_wait: 10s
+        group_interval: 10s
+        repeat_interval: 1h
+        receiver: 'web.hook'
+      receivers:
+      - name: 'web.hook'
+        webhook_configs:
+        - url: 'http://alert-webhook/'
+
+  nodeExporter:
+    enabled: true
+
+  pushgateway:
+    enabled: false
+
+  kubeStateMetrics:
+    enabled: true
+
+  serviceMonitor:
+    namespaceSelector:
+      any: true
+
+grafana:
+  enabled: true
+  adminPassword: "change-this-to-secure-grafana-password-123!"
+
+  service:
+    type: ClusterIP
+    port: 3000
+
+  persistence:
+    enabled: true
+    storageClassName: "gp2"
+    size: 5Gi
+
+  defaultDashboardsEnabled: true
+
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus-server.monitoring.svc.cluster.local:9090
+        access: proxy
+        isDefault: true
+
+  ingress:
+    enabled: false
+
+kube-state-metrics:
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "128Mi"
+      cpu: "100m"
+
+node-exporter:
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "128Mi"
+      cpu: "100m"
+
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "500m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+securityContext:
+  fsGroup: 65534
+  runAsGroup: 65534
+  runAsNonRoot: true
+  runAsUser: 65534

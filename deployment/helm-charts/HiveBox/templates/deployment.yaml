@@ -44,20 +44,10 @@ spec:
               containerPort: {{ .Values.service.port }}
               protocol: TCP
           env:
-          - name: MINIO_ENDPOINT
-            value: "{{ .Values.app.env.MINIO_ENDPOINT }}"
-          - name: MINIO_ACCESS_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ .Values.secrets.minio.secretName }}
-                key: {{ .Values.secrets.minio.accessKeyKey }}
-          - name: MINIO_SECRET_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ .Values.secrets.minio.secretName }}
-                key: {{ .Values.secrets.minio.secretKeyKey }}
-          - name: MINIO_SECURE
-            value: "{{ .Values.app.env.MINIO_SECURE }}"
+          {{- range $key, $value := .Values.app.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+          {{- end }}
           {{- with .Values.readinessProbe }}
           readinessProbe:
             {{- toYaml . | nindent 12 }}
@@ -66,3 +56,23 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          volumeMounts:
+            {{- with .Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

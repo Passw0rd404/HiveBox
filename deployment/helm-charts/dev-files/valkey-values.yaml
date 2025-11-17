@@ -1,0 +1,60 @@
+# valkey-values.yaml - Development Configuration for OFFICIAL Valkey chart
+architecture: standalone
+
+image:
+  repository: valkey/valkey
+  tag: 8.0.0
+  pullPolicy: IfNotPresent
+
+auth:
+  enabled: false
+
+service:
+  type: ClusterIP
+  port: 6379
+
+# Persistence - disabled for faster dev cycles
+persistence:
+  enabled: false
+
+# Resources - optimized for dev
+resources:
+  requests:
+    memory: "64Mi"
+    cpu: "50m"
+  limits:
+    memory: "128Mi"
+    cpu: "100m"
+
+# Valkey configuration - NOTE: Different parameter name!
+valkeyConfig:  # Changed from 'config' to 'valkeyConfig'
+  maxmemory: "128mb"
+  maxmemory-policy: "allkeys-lru"
+  timeout: "300"
+  tcp-keepalive: "60"
+  appendonly: "no"
+  save: ""
+
+# Probes - optimized
+readinessProbe:
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 1
+  failureThreshold: 3
+
+livenessProbe:
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Extra settings - NOTE: Different parameter name!
+extraArgs:  # Changed from 'extraFlags' to 'extraArgs'
+  - "--loglevel"
+  - "notice"
+
+# Security context
+securityContext:
+  enabled: false
+
+# Remove replicaCount - not used in official chart

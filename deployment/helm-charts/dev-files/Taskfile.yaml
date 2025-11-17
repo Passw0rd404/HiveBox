@@ -1,0 +1,91 @@
+version: '3'
+
+tasks:
+  dev:deploy:
+    desc: "Deploy all services for development"
+    cmds:
+      - task: dev:create-namespaces
+      - task: dev:deploy-dependencies
+      - task: dev:deploy-app
+      - echo "Development deployment complete!"
+      # "Access Grafana: http://localhost:3000 (admin/admin)"
+      # echo "Access MinIO Console: http://localhost:9001 (minioadmin/minioadmin123)"
+      # echo "Access Prometheus: http://localhost:9090"
+      # echo "Access HiveBox API: http://localhost:8000"
+
+  dev:create-namespaces:
+    desc: "Create development namespaces"
+    cmds:
+      - kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+      - kubectl create namespace storage --dry-run=client -o yaml | kubectl apply -f -
+
+  dev:deploy-dependencies:
+    desc: "Deploy development dependencies"
+    cmds:
+      - helm upgrade --install minio minio/minio -n storage -f minio-values.yaml --wait
+      - helm upgrade --install valkey valkey/valkey -n storage -f valkey-values.yaml --wait
+      - helm upgrade --install prometheus prometheus-community/kube-prometheus-stack -n monitoring -f prometheus-values.yaml --wait
+
+  dev:deploy-app:
+    desc: "Deploy HiveBox app for development"
+    cmds:
+      - helm upgrade --install hivebox ../HiveBox -f values.yaml --wait
+
+  dev:port-forward:
+    desc: "Start port forwarding for all development services"
+    cmds:
+      - kubectl port-forward -n monitoring svc/prometheus-grafana 3000:3000 &
+      - kubectl port-forward -n storage svc/minio-console 9001:9001 &
+      - kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-prometheus 9090:9090 &
+      - kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-alertmanager 9093:9093
+      - kubectl port-forward svc/hivebox 8000:8000 &
+      - echo "Port forwarding started for all services"
+      - echo "Press Ctrl+C to stop all port forwarding"
+      - wait
+
+  dev:port-forward-grafana:
+    desc: "Port forward only Grafana"
+    cmds:
+      - kubectl port-forward -n monitoring svc/prometheus-grafana 3000:3000
+
+  dev:port-forward-minio:
+    desc: "Port forward only MinIO Console"
+    cmds:
+      - kubectl port-forward -n storage svc/minio-console 9001:9001
+
+  dev:port-forward-prometheus:
+    desc: "Port forward only Prometheus"
+    cmds:
+      - kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-prometheus 9090:9090
+
+  dev:port-forward-app:
+    desc: "Port forward only HiveBox app"
+    cmds:
+      - kubectl port-forward svc/hivebox 8080:8000
+
+  dev:logs:
+    desc: "Tail logs from HiveBox app"
+    cmds:
+      - kubectl logs -f deployment/hivebox
+
+  dev:status:
+    desc: "Check status of all development services"
+    cmds:
+      - echo "=== Helm Releases ==="
+      - helm list -A
+      - echo ""
+      - echo "=== Pods ==="
+      - kubectl get pods -A
+      - echo ""
+      - echo "=== Services ==="
+      - kubectl get svc -A
+
+  dev:cleanup:
+    desc: "Clean up all development resources"
+    cmds:
+      - helm uninstall hivebox || true
+      - helm uninstall prometheus -n monitoring || true
+      - helm uninstall valkey -n storage || true
+      - helm uninstall minio -n storage || true
+      - kubectl delete namespace monitoring storage --ignore-not-found=true
+      - echo "Development environment cleaned up"

@@ -1,0 +1,109 @@
+# prometheus-values.yaml - Development Configuration
+
+# Core Prometheus configuration
+prometheus:
+  namespace: monitoring
+  enabled: true
+
+  server:
+    # Persistence - disabled for faster dev cycles
+    persistentVolume:
+      enabled: false  # Changed from true
+
+    # Resources - optimized for dev
+    resources:
+      requests:
+        memory: "256Mi"  # Reduced from 512Mi
+        cpu: "100m"      # Reduced from 300m
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+    # Retention period - shorter for dev
+    retention: "24h"  # Add this line
+
+    # Scrape config for your FastAPI app
+    extraScrapeConfigs: |
+      - job_name: 'fastapi-app'
+        kubernetes_sd_configs:
+        - role: endpoints
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+          action: keep
+          regex: true
+        - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+        - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+          action: replace
+          regex: (.+)(?::\d+);(\d+)
+          replacement: $1:$2
+          target_label: __address__
+        - source_labels: [__meta_kubernetes_namespace]
+          action: replace
+          target_label: kubernetes_namespace
+
+  # Components - optimized for dev
+  alertmanager:
+    enabled: false  # Good for dev
+
+  nodeExporter:
+    enabled: true   # Keep to see node metrics
+
+  pushgateway:
+    enabled: false  # Good for dev
+
+  kubeStateMetrics:
+    enabled: true   # Keep for Kubernetes metrics
+
+  serviceMonitor:
+    namespaceSelector:
+      any: true
+
+# Grafana configuration
+grafana:
+  enabled: true
+  adminPassword: "admin"
+
+  service:
+    type: ClusterIP
+    port: 3000
+
+  persistence:
+    enabled: false  # Good for dev
+
+  defaultDashboardsEnabled: true
+
+  # Resources - optimized for dev
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+  # Auto-provision datasource
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus-server.monitoring.svc.cluster.local:9090
+        access: proxy
+        isDefault: true
+
+# Disable unnecessary components for dev
+kube-state-metrics:
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+
+node-exporter:
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"

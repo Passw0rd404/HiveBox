@@ -182,23 +182,13 @@ async def get_version() -> dict:
 
 @app.get("/readyz")
 async def get_readyz():
-    """Readiness probe endpoint."""
-    # Use cache for readiness check
-    ready = await get_temperature_with_cache()
-    if ready == 503:
-        return JSONResponse(
-            status_code=503,
-            content={
-                "status": "Service Unavailable",
-                "note": "Temperature services are currently unavailable. Please try again later.",
-            },
-        )
-
+    """Readiness probe endpoint - just check if app is running."""
     return JSONResponse(
         status_code=200,
         content={
-            "status": "Service available",
-            "note": "Temperature services are currently available.",
+            "status": "ready",
+            "app": "running",
+            "timestamp": datetime.datetime.utcnow().isoformat(),
         },
     )
 

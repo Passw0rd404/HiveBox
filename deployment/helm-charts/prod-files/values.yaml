@@ -1,0 +1,146 @@
+# Production values for HiveBox
+replicaCount: 3
+
+nameOverride: "hivebox"
+fullnameOverride: "hivebox"
+
+app:
+  repository: passw0rd010/hivebox
+  pullPolicy: IfNotPresent
+  tag: "v1.0.0"
+  env:
+    MINIO_ENDPOINT: "minio.storage.svc.cluster.local:9000"
+    MINIO_ACCESS_KEY: "minioadmin"
+    MINIO_SECRET_KEY: "minioadmin123"
+    MINIO_SECURE: "false"
+    VALKEY_HOST: "valkey-master.storage.svc.cluster.local"
+    VALKEY_PORT: "6379"
+    VALKEY_PASSWORD: ""
+    VALKEY_DB: "0"
+    PROMETHEUS_MULTIPROC_DIR: "/tmp"
+    LOG_LEVEL: "INFO"
+    ENVIRONMENT: "production"
+
+monitoring-namespace: monitoring
+namespace: hivebox-production
+storage-namespace: storage
+
+imagePullSecrets: []
+fullnameOverride: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/path: "/metrics"
+  prometheus.io/port: "8000"
+
+podLabels:
+  app.kubernetes.io/version: "v1.0.0"
+  app.kubernetes.io/environment: "production"
+
+podSecurityContext:
+  seccompProfile:
+    type: RuntimeDefault
+  runAsUser: 1001
+  runAsGroup: 1001
+  runAsNonRoot: true
+
+securityContext:
+  allowPrivilegeEscalation: false
+  privileged: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP  # Keep as ClusterIP for Ingress
+  port: 8000
+  annotations: {}
+
+ingress:
+  enabled: true
+  className: "alb"
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'  # HTTP only
+    alb.ingress.kubernetes.io/healthcheck-port: "8000"
+    alb.ingress.kubernetes.io/success-codes: "200"
+
+  hosts:
+    - host: "*"  # Accept any host - use ALB DNS name directly
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: "{{ include \"HiveBox.fullname\" . }}"
+              port:
+                number: 8000
+
+  tls: []  # No TLS
+
+# Add this to your values.yaml
+httpRoute:
+  enabled: false
+
+resources:
+  limits:
+    cpu: "300m"
+    memory: "256Mi"
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 8000
+    scheme: HTTP
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  successThreshold: 1
+  failureThreshold: 3
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 85
+
+volumes:
+  - name: prometheus-multiproc-dir
+    emptyDir:
+      sizeLimit: "1Gi"
+
+volumeMounts:
+  - name: prometheus-multiproc-dir
+    mountPath: "/tmp"
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - "{{ include \"HiveBox.name\" . }}"
+        topologyKey: kubernetes.io/hostname
+
+tolerations: []
+
+nodeSelector: {}
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: "{{ include \"HiveBox.name\" . }}"

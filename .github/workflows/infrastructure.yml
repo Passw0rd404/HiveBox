@@ -1,0 +1,53 @@
+name: infrastructure Checks
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'deployment/helm-charts/HiveBox/templates/**'
+      - 'deployment/infrastructure-live-v1/**'
+      - 'Dockerfile'
+
+permissions:
+  contents: read # for actions/checkout to fetch code
+  security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Kube-Linter on Helm templates
+      uses: stackrox/kube-linter-action@v1
+      with:
+        directory: "deployment/helm-charts/HiveBox/templates"
+        config: .kube-linter/config.yaml
+        format: sarif
+        output-file: kube-linter-results.sarif
+
+    - name: Run Terrascan on infrastructure
+      uses: tenable/terrascan-action@main
+      with:
+        iac_type: "all"
+        iac_version: "v1"
+        iac_dir: "deployment/infrastructure-live-v1/"
+        policy_type: "aws,kubernetes,docker,github"
+        verbose: "true"
+        non_recursive: "false"
+        config_path: ".terrascan.yaml"
+        # Terrascan automatically creates terrascan.sarif
+
+    - name: Upload Kube-Linter SARIF results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()  # Upload even if previous steps failed
+      with:
+        sarif_file: kube-linter-results.sarif
+
+    - name: Upload Terrascan SARIF results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()  # Upload even if previous steps failed
+      with:
+        sarif_file: terrascan.sarif

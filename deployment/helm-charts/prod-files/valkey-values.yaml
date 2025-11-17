@@ -1,0 +1,89 @@
+# valkey-values.yaml - Production Configuration (Minimal Resources)
+
+architecture: replication
+replica:
+  replicaCount: 2
+
+image:
+  repository: valkey/valkey
+  tag: 8.0.0
+  pullPolicy: IfNotPresent
+
+auth:
+  enabled: true
+  password: "admin321!"
+
+service:
+  type: ClusterIP
+  port: 6379
+
+persistence:
+  enabled: true
+  storageClass: "gp2"
+  size: 1Gi  # Same as dev (was 50Gi)
+  accessModes:
+    - ReadWriteOnce
+
+# Resources - SAME AS DEVELOPMENT
+resources:
+  requests:
+    memory: "64Mi"   # Same as dev (was 1Gi)
+    cpu: "50m"       # Same as dev (was 500m)
+  limits:
+    memory: "128Mi"  # Same as dev (was 2Gi)
+    cpu: "100m"      # Same as dev (was 1000m)
+
+config:
+  maxmemory: "128mb"  # Same as dev (was 1gb)
+  maxmemory-policy: "allkeys-lru"
+  timeout: "300"
+  tcp-keepalive: "60"
+  appendonly: "yes"
+  appendfsync: "everysec"
+  save: "900 1 300 10 60 10000"
+  requirepass: "admin321!"
+
+readinessProbe:
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 5
+
+livenessProbe:
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+sentinel:
+  enabled: true
+  masterSet: "hivebox-valkey"
+
+securityContext:
+  enabled: true
+  fsGroup: 1001
+  runAsUser: 1001
+
+networkPolicy:
+  enabled: true
+  allowExternal: false
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - valkey
+        topologyKey: kubernetes.io/hostname
+
+master:
+  persistence:
+    enabled: true
+    storageClass: "gp2"
+    size: "1Gi"  # Same as dev (was 50Gi)
+  disableCommands: ["FLUSHDB", "FLUSHALL"]
