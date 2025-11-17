@@ -28,7 +28,6 @@ namespace: default  # CHANGED to default for simplicity
 storage-namespace: storage
 
 imagePullSecrets: []
-fullnameOverride: ""
 
 # Pod configuration
 podAnnotations:

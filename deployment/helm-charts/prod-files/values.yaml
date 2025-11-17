@@ -26,7 +26,6 @@ namespace: hivebox-production
 storage-namespace: storage
 
 imagePullSecrets: []
-fullnameOverride: ""
 
 podAnnotations:
   prometheus.io/scrape: "true"
